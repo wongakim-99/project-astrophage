@@ -1,0 +1,23 @@
+import { Routes, Route, Navigate } from 'react-router';
+import UniversePage from './pages/UniversePage';
+import GalaxyPage from './pages/GalaxyPage';
+import StarPage from './pages/StarPage';
+import LoginPage from './pages/LoginPage';
+import ExplorePage from './pages/ExplorePage';
+
+function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<Navigate to="/universe" replace />} />
+      <Route path="/auth/login" element={<LoginPage />} />
+      {/* TODO: Add ProtectedRoute wrapper for logged in users */}
+      <Route path="/universe" element={<UniversePage />} />
+      <Route path="/galaxy/:id" element={<GalaxyPage />} />
+      {/* Public Pages */}
+      <Route path="/:username/stars/:slug" element={<StarPage />} />
+      <Route path="/explore" element={<ExplorePage />} />
+    </Routes>
+  );
+}
+
+export default App;

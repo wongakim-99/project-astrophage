@@ -1,0 +1,37 @@
+from __future__ import annotations
+
+import uuid
+from typing import TYPE_CHECKING
+
+from pgvector.sqlalchemy import Vector
+from sqlalchemy import Boolean, Float, ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.models.base import Base, TimestampMixin, new_uuid
+
+if TYPE_CHECKING:
+    from app.models.galaxy import Galaxy
+    from app.models.user import User
+    from app.models.view_event import ViewEvent
+
+EMBEDDING_DIM = 1536
+
+
+class Star(Base, TimestampMixin):
+    __tablename__ = "stars"
+    __table_args__ = (UniqueConstraint("user_id", "slug", name="uq_star_user_slug"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=new_uuid)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    galaxy_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("galaxies.id", ondelete="CASCADE"), nullable=False, index=True)
+    title: Mapped[str] = mapped_column(String(200), nullable=False)
+    slug: Mapped[str] = mapped_column(String(200), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    embedding: Mapped[list[float]] = mapped_column(Vector(EMBEDDING_DIM), nullable=False)
+    pos_x: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    pos_y: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    is_public: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    owner: Mapped[User] = relationship(back_populates="stars", lazy="noload")
+    galaxy: Mapped[Galaxy] = relationship(back_populates="stars", lazy="noload")
+    view_events: Mapped[list[ViewEvent]] = relationship(back_populates="star", lazy="noload")

@@ -1,0 +1,113 @@
+"""Initial schema with pgvector extension
+
+Revision ID: 001
+Revises:
+Create Date: 2026-04-24
+"""
+
+from typing import Sequence, Union
+
+import sqlalchemy as sa
+from alembic import op
+from pgvector.sqlalchemy import Vector
+
+revision: str = "001"
+down_revision: Union[str, None] = None
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
+
+
+def upgrade() -> None:
+    op.execute("CREATE EXTENSION IF NOT EXISTS vector")
+
+    op.create_table(
+        "users",
+        sa.Column("id", sa.UUID(), nullable=False),
+        sa.Column("username", sa.String(50), nullable=False),
+        sa.Column("email", sa.String(255), nullable=False),
+        sa.Column("password_hash", sa.String(255), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index("ix_users_username", "users", ["username"], unique=True)
+    op.create_index("ix_users_email", "users", ["email"], unique=True)
+
+    op.create_table(
+        "galaxies",
+        sa.Column("id", sa.UUID(), nullable=False),
+        sa.Column("user_id", sa.UUID(), nullable=False),
+        sa.Column("name", sa.String(100), nullable=False),
+        sa.Column("slug", sa.String(100), nullable=False),
+        sa.Column("color", sa.String(7), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
+        sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
+        sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("user_id", "slug", name="uq_galaxy_user_slug"),
+    )
+    op.create_index("ix_galaxies_user_id", "galaxies", ["user_id"])
+
+    op.create_table(
+        "stars",
+        sa.Column("id", sa.UUID(), nullable=False),
+        sa.Column("user_id", sa.UUID(), nullable=False),
+        sa.Column("galaxy_id", sa.UUID(), nullable=False),
+        sa.Column("title", sa.String(200), nullable=False),
+        sa.Column("slug", sa.String(200), nullable=False),
+        sa.Column("content", sa.Text(), nullable=False),
+        sa.Column("embedding", Vector(1536), nullable=False),
+        sa.Column("pos_x", sa.Float(), nullable=False),
+        sa.Column("pos_y", sa.Float(), nullable=False),
+        sa.Column("is_public", sa.Boolean(), nullable=False, server_default="false"),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
+        sa.ForeignKeyConstraint(["galaxy_id"], ["galaxies.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
+        sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("user_id", "slug", name="uq_star_user_slug"),
+    )
+    op.create_index("ix_stars_user_id", "stars", ["user_id"])
+    op.create_index("ix_stars_galaxy_id", "stars", ["galaxy_id"])
+
+    op.create_table(
+        "view_events",
+        sa.Column("id", sa.UUID(), nullable=False),
+        sa.Column("star_id", sa.UUID(), nullable=False),
+        sa.Column("user_id", sa.UUID(), nullable=False),
+        sa.Column("started_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("duration_seconds", sa.Integer(), nullable=False),
+        sa.Column("is_valid", sa.Boolean(), nullable=False),
+        sa.Column("is_edit", sa.Boolean(), nullable=False, server_default="false"),
+        sa.Column("energy_value", sa.Float(), nullable=False, server_default="1.0"),
+        sa.ForeignKeyConstraint(["star_id"], ["stars.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index("ix_view_events_star_id", "view_events", ["star_id"])
+    op.create_index("ix_view_events_user_id", "view_events", ["user_id"])
+    op.create_index("ix_view_events_started_at", "view_events", ["started_at"])
+
+    op.create_table(
+        "wormholes",
+        sa.Column("id", sa.UUID(), nullable=False),
+        sa.Column("star_a_id", sa.UUID(), nullable=False),
+        sa.Column("star_b_id", sa.UUID(), nullable=False),
+        sa.Column("similarity", sa.Float(), nullable=False),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+        sa.ForeignKeyConstraint(["star_a_id"], ["stars.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["star_b_id"], ["stars.id"], ondelete="CASCADE"),
+        sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("star_a_id", "star_b_id", name="uq_wormhole_pair"),
+    )
+    op.create_index("ix_wormholes_star_a_id", "wormholes", ["star_a_id"])
+    op.create_index("ix_wormholes_star_b_id", "wormholes", ["star_b_id"])
+
+
+def downgrade() -> None:
+    op.drop_table("wormholes")
+    op.drop_table("view_events")
+    op.drop_table("stars")
+    op.drop_table("galaxies")
+    op.drop_table("users")
+    op.execute("DROP EXTENSION IF EXISTS vector")

@@ -20,7 +20,7 @@ def compute_lifecycle(
     and the timestamp of the last valid view.
     """
     energy_score = sum(
-        (2.0 if e.is_edit else 1.0) * e.energy_value
+        e.energy_value
         for e in recent_events
         if e.is_valid
     )

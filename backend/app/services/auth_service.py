@@ -11,10 +11,14 @@ from app.schemas.auth import TokenResponse, UserResponse
 
 
 class AuthError(Exception):
+    """라우터가 HTTP 상태 코드로 변환할 인증 도메인 예외."""
+
     pass
 
 
 class AuthService:
+    """인증 비즈니스 규칙과 토큰 발급을 담당한다."""
+
     def __init__(self, session: AsyncSession) -> None:
         self._repo = UserRepository(session)
 
@@ -37,7 +41,7 @@ class AuthService:
         return user_response, tokens
 
     async def login(self, email: str, password: str) -> tuple[UserResponse, TokenResponse, str]:
-        """Returns (user, access_token_response, refresh_token)."""
+        """(user, access_token_response, refresh_token)을 반환한다."""
         user = await self._repo.get_by_email(email)
         if user is None or not verify_password(password, user.password_hash):
             raise AuthError("Invalid email or password")

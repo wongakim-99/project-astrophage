@@ -8,7 +8,8 @@ ENERGY_THRESHOLD_NORMAL = 1.0
 DAYS_RED_GIANT_START = 60
 DAYS_WHITE_DWARF_START = 90
 DAYS_DARK_MATTER_START = 180
-NOVA_ENERGY_RATIO = 0.25  # 25% of direct view energy propagated to similar stars
+# 직접 조회/편집 에너지의 25%를 유사 항성에 1-hop Nova로 전파한다.
+NOVA_ENERGY_RATIO = 0.25
 
 
 def compute_lifecycle(
@@ -16,9 +17,11 @@ def compute_lifecycle(
     last_valid_event: ViewEvent | None,
 ) -> tuple[LifecycleState, float]:
     """
-    Returns (lifecycle_state, energy_score) based on recent 30-day events
-    and the timestamp of the last valid view.
+    최근 30일 이벤트와 마지막 유효 조회 시각을 기준으로
+    (lifecycle_state, energy_score)를 반환한다.
     """
+    # 나중에 배치 job으로 바꾸더라도 repository 쿼리를 바꾸지 않도록
+    # 생애주기 계산은 service 계층에 둔다.
     energy_score = sum(
         e.energy_value
         for e in recent_events
@@ -44,6 +47,7 @@ def compute_lifecycle(
 
 
 def _days_since(event: ViewEvent | None) -> float | None:
+    """과거 row가 naive datetime이어도 UTC 기준 경과 일수를 반환한다."""
     if event is None:
         return None
     last = event.started_at

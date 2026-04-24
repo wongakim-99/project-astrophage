@@ -25,7 +25,10 @@ GALAXY_COLOR_PALETTE = [
 
 
 class Galaxy(Base, TimestampMixin):
+    """관련 항성을 묶는 사용자 소유 지식 도메인."""
+
     __tablename__ = "galaxies"
+    # 슬러그는 각 사용자의 개인 우주 안에서만 유일하다.
     __table_args__ = (UniqueConstraint("user_id", "slug", name="uq_galaxy_user_slug"),)
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=new_uuid)

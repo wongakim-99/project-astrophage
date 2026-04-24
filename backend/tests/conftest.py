@@ -1,9 +1,9 @@
 """
-Test fixtures.
+테스트 fixture.
 
-Requires a real PostgreSQL instance with pgvector.
-Set TEST_DATABASE_URL env var or it falls back to a local default.
-Each test runs in a transaction that is rolled back on teardown.
+pgvector가 설치된 실제 PostgreSQL 인스턴스가 필요하다.
+TEST_DATABASE_URL 환경변수를 설정하지 않으면 로컬 기본값을 사용한다.
+각 테스트는 teardown 시 롤백되는 트랜잭션 안에서 실행된다.
 """
 
 import os
@@ -21,7 +21,7 @@ load_dotenv()
 from app.core.dependencies import get_current_user, get_session
 from app.main import app
 from app.models.base import Base
-from app.models.galaxy import Galaxy  # noqa: F401 — register with Base
+from app.models.galaxy import Galaxy  # noqa: F401 — Base에 등록
 from app.models.star import Star  # noqa: F401
 from app.models.user import User  # noqa: F401
 from app.models.view_event import ViewEvent  # noqa: F401
@@ -59,7 +59,7 @@ async def session(engine) -> AsyncGenerator[AsyncSession, None]:  # type: ignore
 
 @pytest_asyncio.fixture
 async def client(session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
-    """HTTP test client with DB session and OpenAI mock injected."""
+    """DB 세션과 OpenAI mock을 주입한 HTTP 테스트 클라이언트."""
 
     async def _override_session() -> AsyncGenerator[AsyncSession, None]:
         yield session
@@ -76,7 +76,7 @@ async def client(session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
 
 @pytest_asyncio.fixture
 async def auth_client(session: AsyncSession) -> AsyncGenerator[tuple[AsyncClient, User], None]:
-    """Authenticated test client — creates a user and injects it as current_user."""
+    """테스트 사용자를 만들고 current_user로 주입한 인증 클라이언트."""
     from app.core.security import hash_password
 
     user = User(

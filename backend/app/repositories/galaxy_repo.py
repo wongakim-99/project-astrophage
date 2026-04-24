@@ -8,6 +8,8 @@ from app.models.star import Star
 
 
 class GalaxyRepository:
+    """사용자 소유 Galaxy에 대한 SQLAlchemy 쿼리 모음."""
+
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
@@ -28,6 +30,7 @@ class GalaxyRepository:
         return list(result.scalars().all())
 
     async def count_stars(self, galaxy_id: uuid.UUID) -> int:
+        """목록 응답용 항성 수를 전체 row 로딩 없이 계산한다."""
         result = await self._session.execute(
             select(func.count()).where(Star.galaxy_id == galaxy_id)
         )

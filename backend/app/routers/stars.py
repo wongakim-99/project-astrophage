@@ -41,6 +41,7 @@ async def preview_similar(
     current_user: CurrentUser,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> list[SimilarStarPreview]:
+    """의미적으로 가까운 이웃을 미리 본다. 이 POST는 의도적으로 임베딩을 호출한다."""
     service = StarService(session)
     try:
         return await service.preview_similar(current_user.id, galaxy_id, title, content)
@@ -54,6 +55,7 @@ async def create_star(
     current_user: CurrentUser,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> StarResponse:
+    """기본 비공개 항성을 만들고 최초 고정 좌표를 배정한다."""
     service = StarService(session)
     try:
         return await service.create_star(
@@ -108,6 +110,7 @@ async def record_view(
     current_user: CurrentUser,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> StarResponse:
+    """체류/편집 에너지를 기록하고, 유효하면 1-hop Nova 전파를 실행한다."""
     service = StarService(session)
     try:
         return await service.record_view(
@@ -127,6 +130,7 @@ async def update_visibility(
     current_user: CurrentUser,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> StarResponse:
+    """공개 explore와 username/slug URL에 쓰는 소유자 전용 공개 토글."""
     service = StarService(session)
     try:
         return await service.set_visibility(current_user.id, star_id, body.is_public)

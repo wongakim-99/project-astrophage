@@ -8,10 +8,13 @@ from app.models.view_event import ViewEvent
 
 
 class ViewEventRepository:
+    """생애주기 에너지 이벤트 저장소."""
+
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
     async def list_recent_by_star(self, star_id: uuid.UUID, days: int = 30) -> list[ViewEvent]:
+        """실시간 생애주기 점수 계산에 쓰는 슬라이딩 윈도우 이벤트를 반환한다."""
         since = datetime.now(UTC) - timedelta(days=days)
         result = await self._session.execute(
             select(ViewEvent)
@@ -21,6 +24,7 @@ class ViewEventRepository:
         return list(result.scalars().all())
 
     async def get_last_valid(self, star_id: uuid.UUID) -> ViewEvent | None:
+        """비활성 기간 기반 상태 전환에 쓰는 최신 유효 에너지 이벤트를 찾는다."""
         result = await self._session.execute(
             select(ViewEvent)
             .where(ViewEvent.star_id == star_id, ViewEvent.is_valid == True)  # noqa: E712

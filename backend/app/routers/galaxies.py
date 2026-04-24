@@ -18,6 +18,7 @@ async def list_galaxies(
     current_user: CurrentUser,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> list[GalaxyResponse]:
+    """인증된 사용자의 은하만 반환한다."""
     service = GalaxyService(session)
     galaxies = await service.list_galaxies(current_user.id)
     return [GalaxyResponse(**g) for g in galaxies]
@@ -29,6 +30,7 @@ async def create_galaxy(
     current_user: CurrentUser,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> GalaxyResponse:
+    """사용자 범위 은하를 생성한다. 슬러그 충돌은 명시적 오류로 처리한다."""
     service = GalaxyService(session)
     try:
         galaxy = await service.create_galaxy(

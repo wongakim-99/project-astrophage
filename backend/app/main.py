@@ -4,6 +4,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.routers import auth, explore, galaxies, stars
 
+# FastAPI 앱 진입점. 도메인 로직은 서비스 클래스에 두고, 여기서는
+# 전역 미들웨어와 라우터 등록만 담당한다.
 app = FastAPI(
     title="Project Astrophage API",
     version="0.1.0",
@@ -21,7 +23,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(galaxies.router)
 app.include_router(stars.router)
-# explore routes are last — /{username}/stars/{slug} must not shadow fixed paths
+# /{username}/stars/{slug}가 고정 경로를 가리지 않도록 explore 라우터는 마지막에 등록한다.
 app.include_router(explore.router)
 
 

@@ -20,6 +20,7 @@ async def register(
     response: Response,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> TokenResponse:
+    """계정을 만들고 access token과 httpOnly refresh token을 발급한다."""
     service = AuthService(session)
     try:
         _, tokens, refresh = await _register_with_refresh(service, body)
@@ -32,7 +33,8 @@ async def register(
 async def _register_with_refresh(
     service: AuthService, body: RegisterRequest
 ) -> tuple[UserResponse, TokenResponse, str]:
-    # Temporarily expose refresh token during register
+    # AuthService.register는 공개 응답 형태만 반환한다.
+    # HTTP 경계인 라우터에서 쿠키 전용 refresh token을 만든다.
     user, tokens = await service.register(
         username=body.username, email=body.email, password=body.password
     )
@@ -61,6 +63,7 @@ async def refresh_token(
     refresh_token: Annotated[str | None, Cookie(alias=REFRESH_COOKIE)] = None,
     session: Annotated[AsyncSession, Depends(get_session)] = None,  # type: ignore[assignment]
 ) -> TokenResponse:
+    """httpOnly refresh 쿠키를 새 access token으로 교환한다."""
     if refresh_token is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing refresh token")
     try:
@@ -82,6 +85,7 @@ async def logout(response: Response) -> MessageResponse:
 
 
 def _set_refresh_cookie(response: Response, token: str) -> None:
+    """refresh token을 JavaScript 접근 밖에 저장한다. 운영 환경에서는 secure 쿠키를 쓴다."""
     from app.core.config import settings
     response.set_cookie(
         key=REFRESH_COOKIE,

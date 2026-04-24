@@ -1,3 +1,5 @@
+"""계정 생성, 로그인, 쿠키, 상태 확인을 검증하는 Auth API 회귀 테스트."""
+
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -49,7 +51,7 @@ async def test_login_success(client: AsyncClient) -> None:
     })
     assert response.status_code == 200
     assert "access_token" in response.json()
-    # Refresh token set as httpOnly cookie
+    # refresh token은 httpOnly 쿠키로 설정된다.
     assert "refresh_token" in response.cookies
 
 

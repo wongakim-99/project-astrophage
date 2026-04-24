@@ -16,6 +16,7 @@ async def get_current_user(
     credentials: Annotated[HTTPAuthorizationCredentials, Depends(bearer_scheme)],
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> User:
+    """Bearer access token을 인증된 사용자 행으로 해석한다."""
     token = credentials.credentials
     try:
         user_id = decode_token(token, token_type="access")

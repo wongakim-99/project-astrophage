@@ -7,6 +7,8 @@ from app.models.star import Star
 
 
 class StarRepository:
+    """항성 DB 접근 클래스. pgvector 유사도 쿼리도 여기에서 처리한다."""
+
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
@@ -21,6 +23,7 @@ class StarRepository:
         return result.scalar_one_or_none()
 
     async def get_public_by_username_slug(self, username: str, slug: str) -> Star | None:
+        """공개 항성만 조회한다. 비공개 항성은 공개 URL로 노출되면 안 된다."""
         from app.models.user import User
 
         result = await self._session.execute(
@@ -43,6 +46,7 @@ class StarRepository:
         return list(result.scalars().all())
 
     async def list_public(self, limit: int = 50, offset: int = 0) -> list[Star]:
+        """공개 explore 피드용 목록. 화면 표시용 필드는 호출자가 별도로 붙인다."""
         result = await self._session.execute(
             select(Star)
             .where(Star.is_public == True)  # noqa: E712
@@ -59,7 +63,7 @@ class StarRepository:
         exclude_id: uuid.UUID | None = None,
         k: int = 5,
     ) -> list[tuple[Star, float]]:
-        """Return top-k stars in the galaxy ordered by cosine similarity (highest first)."""
+        """같은 은하 안에서 코사인 유사도가 높은 상위 k개 항성을 반환한다."""
         query = (
             select(Star, Star.embedding.cosine_distance(embedding).label("distance"))
             .where(Star.galaxy_id == galaxy_id)
@@ -70,7 +74,8 @@ class StarRepository:
 
         result = await self._session.execute(query)
         rows = result.all()
-        return [(row[0], 1.0 - row[1]) for row in rows]  # convert distance to similarity
+        # pgvector는 cosine distance를 반환하므로 service에서 쓰는 similarity로 변환한다.
+        return [(row[0], 1.0 - row[1]) for row in rows]
 
     async def create(
         self,
@@ -106,6 +111,7 @@ class StarRepository:
         embedding: list[float] | None = None,
         galaxy_id: uuid.UUID | None = None,
     ) -> Star:
+        """고정 좌표는 건드리지 않고 수정 가능한 콘텐츠 필드만 갱신한다."""
         if title is not None:
             star.title = title
         if content is not None:

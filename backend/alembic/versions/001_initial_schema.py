@@ -1,4 +1,4 @@
-"""Initial schema with pgvector extension
+"""pgvector 확장을 포함한 초기 스키마
 
 Revision ID: 001
 Revises:
@@ -18,6 +18,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    # VECTOR(1536) 임베딩 컬럼을 만들기 전에 pgvector 확장이 필요하다.
     op.execute("CREATE EXTENSION IF NOT EXISTS vector")
 
     op.create_table(
@@ -56,9 +57,12 @@ def upgrade() -> None:
         sa.Column("title", sa.String(200), nullable=False),
         sa.Column("slug", sa.String(200), nullable=False),
         sa.Column("content", sa.Text(), nullable=False),
+        # 조회와 공개 페이지가 OpenAI를 호출하지 않도록 임베딩을 저장한다.
         sa.Column("embedding", Vector(1536), nullable=False),
+        # 최초 2D 배치를 직접 저장하고 UX를 위해 안정적으로 유지한다.
         sa.Column("pos_x", sa.Float(), nullable=False),
         sa.Column("pos_y", sa.Float(), nullable=False),
+        # 항성은 비공개로 시작하며, 공개하려면 소유자의 명시적 액션이 필요하다.
         sa.Column("is_public", sa.Boolean(), nullable=False, server_default="false"),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
@@ -77,6 +81,8 @@ def upgrade() -> None:
         sa.Column("user_id", sa.UUID(), nullable=False),
         sa.Column("started_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("duration_seconds", sa.Integer(), nullable=False),
+        # 유효 이벤트는 생애주기 에너지를 만든다. 짧은 체류 기록은 상태에 영향 없이
+        # 나중에 분석용으로 사용할 수 있다.
         sa.Column("is_valid", sa.Boolean(), nullable=False),
         sa.Column("is_edit", sa.Boolean(), nullable=False, server_default="false"),
         sa.Column("energy_value", sa.Float(), nullable=False, server_default="1.0"),

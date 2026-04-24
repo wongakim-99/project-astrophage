@@ -1,5 +1,7 @@
-"""Wormhole model — Phase 2. Schema defined here so Alembic can create the table,
-but no service/router logic is implemented yet."""
+"""웜홀 모델 — Phase 2 범위.
+
+Alembic이 테이블을 만들 수 있도록 스키마만 정의하고, 서비스/라우터 로직은 아직 구현하지 않는다.
+"""
 
 import uuid
 from datetime import UTC, datetime

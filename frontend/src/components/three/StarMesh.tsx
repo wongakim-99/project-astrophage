@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Mesh } from 'three';
 import { Html } from '@react-three/drei';
@@ -15,7 +15,7 @@ export default function StarMesh({ position, color, size, name, onClick }: StarM
   const meshRef = useRef<Mesh>(null);
 
   // Simple idle animation (rotation)
-  useFrame((state, delta) => {
+  useFrame((_, delta) => {
     if (meshRef.current) {
       meshRef.current.rotation.y += delta * 0.2;
     }

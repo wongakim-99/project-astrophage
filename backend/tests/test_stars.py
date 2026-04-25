@@ -1,9 +1,11 @@
+"""CRUD, 공개 여부, 조회 에너지, 생애주기 규칙을 검증하는 항성 API 테스트."""
+
 from httpx import AsyncClient
 
 from app.models.user import User
 from app.services.lifecycle import DAYS_DARK_MATTER_START, compute_lifecycle
 
-# ── helpers ──────────────────────────────────────────────────────────────────
+# ── 헬퍼 ──────────────────────────────────────────────────────────────────────
 
 async def _make_galaxy(client: AsyncClient, slug: str = "algo") -> str:
     resp = await client.post("/galaxies", json={"name": "Test Galaxy", "slug": slug})
@@ -22,7 +24,7 @@ async def _make_star(client: AsyncClient, galaxy_id: str, slug: str = "merge-sor
     return resp.json()
 
 
-# ── star CRUD ─────────────────────────────────────────────────────────────────
+# ── 항성 CRUD ─────────────────────────────────────────────────────────────────
 
 async def test_create_star(auth_client: tuple[AsyncClient, User]) -> None:
     client, _ = auth_client
@@ -87,7 +89,7 @@ async def test_delete_star(auth_client: tuple[AsyncClient, User]) -> None:
     assert star["id"] not in ids
 
 
-# ── visibility ────────────────────────────────────────────────────────────────
+# ── 공개 여부 ─────────────────────────────────────────────────────────────────
 
 async def test_visibility_toggle(auth_client: tuple[AsyncClient, User]) -> None:
     client, user = auth_client
@@ -99,7 +101,7 @@ async def test_visibility_toggle(auth_client: tuple[AsyncClient, User]) -> None:
     assert resp.status_code == 200
     assert resp.json()["is_public"] is True
 
-    # Public page should now be accessible
+    # 공개 전환 후에는 공개 페이지로 접근할 수 있어야 한다.
     pub_resp = await client.get(f"/{user.username}/stars/radix-sort")
     assert pub_resp.status_code == 200
     assert pub_resp.json()["title"] == "Merge Sort" or pub_resp.json()["title"] == "Radix Sort"
@@ -114,7 +116,7 @@ async def test_private_star_returns_403(auth_client: tuple[AsyncClient, User]) -
     assert resp.status_code == 403
 
 
-# ── view event & lifecycle ────────────────────────────────────────────────────
+# ── 조회 이벤트와 생애주기 ───────────────────────────────────────────────────
 
 async def test_record_view_valid(auth_client: tuple[AsyncClient, User]) -> None:
     client, _ = auth_client
@@ -132,7 +134,7 @@ async def test_record_view_invalid_too_short(auth_client: tuple[AsyncClient, Use
     galaxy_id = await _make_galaxy(client, "algo-view2")
     star = await _make_star(client, galaxy_id, slug="short-view")
 
-    # 10 seconds is below the 30s threshold — should not count as valid
+    # 10초는 30초 기준보다 짧으므로 유효 조회로 계산되면 안 된다.
     resp = await client.post(f"/stars/{star['id']}/view", json={"duration_seconds": 10})
     assert resp.status_code == 200
     assert resp.json()["energy_score"] == 0.0
@@ -148,7 +150,7 @@ async def test_edit_event_gives_double_energy(auth_client: tuple[AsyncClient, Us
     assert resp.json()["energy_score"] == 2.0
 
 
-# ── lifecycle unit tests ──────────────────────────────────────────────────────
+# ── 생애주기 단위 테스트 ─────────────────────────────────────────────────────
 
 def test_lifecycle_main_sequence() -> None:
     from datetime import UTC, datetime, timedelta

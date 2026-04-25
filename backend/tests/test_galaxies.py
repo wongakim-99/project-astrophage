@@ -1,3 +1,5 @@
+"""소유자 범위 CRUD와 기본 색상 배정을 검증하는 은하 API 테스트."""
+
 from httpx import AsyncClient
 
 from app.models.user import User

@@ -7,15 +7,29 @@ from app.repositories.galaxy_repo import GalaxyRepository
 
 
 class GalaxyError(Exception):
+    """라우터가 HTTP 오류로 변환할 은하 도메인 예외."""
+
     pass
 
 
 class GalaxyService:
+    """사용자 소유 은하 CRUD의 비즈니스 규칙."""
+
     def __init__(self, session: AsyncSession) -> None:
+        """
+        Args:
+            session: 은하 조회/변경과 commit에 사용할 요청 범위 비동기 DB 세션.
+        """
         self._session = session
         self._repo = GalaxyRepository(session)
 
     async def list_galaxies(self, user_id: uuid.UUID) -> list[dict]:  # type: ignore[type-arg]
+        """
+        탐색 UI에 필요한 가벼운 항성 수와 함께 은하 목록을 반환한다.
+
+        Args:
+            user_id: 은하 목록을 가져올 소유자 UUID.
+        """
         galaxies = await self._repo.list_by_user(user_id)
         result = []
         for g in galaxies:
@@ -26,10 +40,21 @@ class GalaxyService:
     async def create_galaxy(
         self, user_id: uuid.UUID, name: str, slug: str, color: str | None
     ) -> Galaxy:
+        """
+        사용자 범위 slug 중복을 확인하고 새 은하를 생성한다.
+
+        Args:
+            user_id: 새 은하를 소유할 사용자 UUID.
+            name: 화면에 표시할 은하 이름.
+            slug: 사용자 범위에서 유일해야 하는 URL용 은하 식별자.
+            color: 클라이언트가 지정한 7자리 hex 색상. None이면 팔레트에서 자동 선택한다.
+        """
         if await self._repo.get_by_user_and_slug(user_id, slug):
             raise GalaxyError(f"Galaxy slug '{slug}' already exists")
 
         if color is None:
+            # 결정적인 팔레트 순환으로 생성 로직은 단순하게 유지하면서
+            # 인접한 은하의 기본 색상이 서로 구분되게 한다.
             existing = await self._repo.list_by_user(user_id)
             color = GALAXY_COLOR_PALETTE[len(existing) % len(GALAXY_COLOR_PALETTE)]
 
@@ -40,17 +65,40 @@ class GalaxyService:
     async def update_galaxy(
         self, user_id: uuid.UUID, galaxy_id: uuid.UUID, name: str | None, color: str | None
     ) -> Galaxy:
+        """
+        소유권을 확인한 뒤 은하의 표시 이름과 색상을 수정한다.
+
+        Args:
+            user_id: 변경을 요청한 사용자 UUID.
+            galaxy_id: 수정할 Galaxy UUID.
+            name: 새 은하 이름. None이면 기존 값을 유지한다.
+            color: 새 7자리 hex 색상. None이면 기존 값을 유지한다.
+        """
         galaxy = await self._get_owned(user_id, galaxy_id)
         galaxy = await self._repo.update(galaxy, name=name, color=color)
         await self._session.commit()
         return galaxy
 
     async def delete_galaxy(self, user_id: uuid.UUID, galaxy_id: uuid.UUID) -> None:
+        """
+        소유권을 확인한 뒤 은하를 삭제한다.
+
+        Args:
+            user_id: 삭제를 요청한 사용자 UUID.
+            galaxy_id: 삭제할 Galaxy UUID.
+        """
         galaxy = await self._get_owned(user_id, galaxy_id)
         await self._repo.delete(galaxy)
         await self._session.commit()
 
     async def _get_owned(self, user_id: uuid.UUID, galaxy_id: uuid.UUID) -> Galaxy:
+        """
+        은하 변경 전에 개인 우주 소유권을 검증한다.
+
+        Args:
+            user_id: 소유권을 확인할 사용자 UUID.
+            galaxy_id: 소유 여부를 확인할 Galaxy UUID.
+        """
         galaxy = await self._repo.get_by_id(galaxy_id)
         if galaxy is None or galaxy.user_id != user_id:
             raise GalaxyError("Galaxy not found")

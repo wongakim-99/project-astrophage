@@ -4,7 +4,7 @@ import numpy as np
 
 from app.models.star import Star
 
-_JITTER_SCALE = 0.5  # coordinate units of random offset for new stars
+_JITTER_SCALE = 0.5  # 새 항성에 적용할 좌표 단위 랜덤 오프셋
 
 
 def place_new_star(
@@ -13,12 +13,17 @@ def place_new_star(
     k: int = 3,
 ) -> tuple[float, float]:
     """
-    Compute (x, y) placement for a new star without recalculating existing coordinates.
+    기존 항성 좌표를 다시 계산하지 않고 새 항성의 (x, y) 위치를 정한다.
 
-    Strategy:
-    - 0 existing stars → place at origin
-    - 1 existing star  → place at (1.0, 0.0) relative to it
-    - 2+ existing stars → weighted centroid of top-k similar, plus jitter
+    전략:
+    - 기존 항성이 0개면 원점에 배치
+    - 기존 항성이 1개면 해당 항성 기준 (1.0, 0.0)에 배치
+    - 기존 항성이 2개 이상이면 유사도 상위 k개의 가중 중심 + jitter 적용
+
+    Args:
+        existing_stars: 같은 Galaxy에 이미 저장된 기존 Star 목록.
+        new_embedding: 새 Star의 title/content에서 만든 임베딩 벡터.
+        k: 좌표 가중 중심 계산에 사용할 유사 이웃 최대 개수.
     """
     if not existing_stars:
         return 0.0, 0.0
@@ -42,6 +47,7 @@ def place_new_star(
         similarities.append((cosine_sim, star))
 
     similarities.sort(key=lambda t: t[0], reverse=True)
+    # 의미적으로 가장 가까운 이웃만 배치에 사용한다. 기존 좌표는 anchor로 읽기만 하고 쓰지 않는다.
     top_k = similarities[:k]
 
     if not top_k:
@@ -59,6 +65,13 @@ def place_new_star(
 
 
 def _jittered(x: float, y: float) -> tuple[float, float]:
+    """
+    의미적으로 겹치는 이웃 항성도 클릭 가능하도록 작은 오프셋을 더한다.
+
+    Args:
+        x: 기준 x 좌표.
+        y: 기준 y 좌표.
+    """
     return (
         x + random.uniform(-_JITTER_SCALE, _JITTER_SCALE),
         y + random.uniform(-_JITTER_SCALE, _JITTER_SCALE),

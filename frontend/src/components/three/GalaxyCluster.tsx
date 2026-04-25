@@ -1,4 +1,4 @@
-import React from 'react';
+
 
 interface GalaxyClusterProps {
   position: [number, number, number];
@@ -8,7 +8,7 @@ interface GalaxyClusterProps {
 }
 
 // In the Universe View, a GalaxyCluster represents one entire domain/galaxy
-export default function GalaxyCluster({ position, color, name, onClick }: GalaxyClusterProps) {
+export default function GalaxyCluster({ position, color, onClick }: GalaxyClusterProps) {
   return (
     <group position={position} onClick={onClick}>
       {/* Nebula Fog Effect Placeholder */}

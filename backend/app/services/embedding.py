@@ -17,7 +17,12 @@ def get_client() -> AsyncOpenAI:
 
 
 async def embed_text(text: str) -> list[float]:
-    """OpenAI 임베딩 API를 호출한다. 항성 생성/수정에서만 호출하고 GET에서는 절대 호출하지 않는다."""
+    """
+    OpenAI 임베딩 API를 호출한다. 항성 생성/수정에서만 호출하고 GET에서는 절대 호출하지 않는다.
+
+    Args:
+        text: 임베딩할 원문 텍스트. 항성에서는 title과 content를 합친 문자열을 넘긴다.
+    """
     response = await get_client().embeddings.create(
         model=EMBEDDING_MODEL,
         input=text,

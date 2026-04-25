@@ -19,6 +19,11 @@ def place_new_star(
     - 기존 항성이 0개면 원점에 배치
     - 기존 항성이 1개면 해당 항성 기준 (1.0, 0.0)에 배치
     - 기존 항성이 2개 이상이면 유사도 상위 k개의 가중 중심 + jitter 적용
+
+    Args:
+        existing_stars: 같은 Galaxy에 이미 저장된 기존 Star 목록.
+        new_embedding: 새 Star의 title/content에서 만든 임베딩 벡터.
+        k: 좌표 가중 중심 계산에 사용할 유사 이웃 최대 개수.
     """
     if not existing_stars:
         return 0.0, 0.0
@@ -60,7 +65,13 @@ def place_new_star(
 
 
 def _jittered(x: float, y: float) -> tuple[float, float]:
-    """의미적으로 겹치는 이웃 항성도 클릭 가능하도록 작은 오프셋을 더한다."""
+    """
+    의미적으로 겹치는 이웃 항성도 클릭 가능하도록 작은 오프셋을 더한다.
+
+    Args:
+        x: 기준 x 좌표.
+        y: 기준 y 좌표.
+    """
     return (
         x + random.uniform(-_JITTER_SCALE, _JITTER_SCALE),
         y + random.uniform(-_JITTER_SCALE, _JITTER_SCALE),

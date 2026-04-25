@@ -19,6 +19,10 @@ def compute_lifecycle(
     """
     최근 30일 이벤트와 마지막 유효 조회 시각을 기준으로
     (lifecycle_state, energy_score)를 반환한다.
+
+    Args:
+        recent_events: 에너지 점수에 반영할 최근 ViewEvent 목록.
+        last_valid_event: 비활성 기간 계산에 사용할 최신 유효 ViewEvent. 없으면 None.
     """
     # 나중에 배치 job으로 바꾸더라도 repository 쿼리를 바꾸지 않도록
     # 생애주기 계산은 service 계층에 둔다.
@@ -47,7 +51,12 @@ def compute_lifecycle(
 
 
 def _days_since(event: ViewEvent | None) -> float | None:
-    """과거 row가 naive datetime이어도 UTC 기준 경과 일수를 반환한다."""
+    """
+    과거 row가 naive datetime이어도 UTC 기준 경과 일수를 반환한다.
+
+    Args:
+        event: 경과 일수를 계산할 ViewEvent. 없으면 None을 반환한다.
+    """
     if event is None:
         return None
     last = event.started_at

@@ -19,7 +19,14 @@ async def list_public_stars(
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
 ) -> list[StarPublicResponse]:
-    """공개 카드 피드. is_public=true인 항성만 여기에 노출된다."""
+    """
+    공개 카드 피드. is_public=true인 항성만 여기에 노출된다.
+
+    Args:
+        session: 요청 범위에서 공유하는 비동기 DB 세션.
+        limit: 한 번에 반환할 공개 항성 최대 개수. 1~100 사이만 허용한다.
+        offset: 페이지네이션을 위해 앞에서 건너뛸 공개 항성 개수.
+    """
     service = StarService(session)
     stars = await service.list_public(limit=limit, offset=offset)
 
@@ -53,7 +60,14 @@ async def get_public_star(
     slug: str,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> StarPublicResponse:
-    """공개 username/slug 페이지. 비공개 또는 없는 항성은 의도적으로 403을 반환한다."""
+    """
+    공개 username/slug 페이지. 비공개 또는 없는 항성은 의도적으로 403을 반환한다.
+
+    Args:
+        username: 공개 URL에서 받은 항성 소유자의 username.
+        slug: 공개 URL에서 받은 사용자 범위의 항성 slug.
+        session: 요청 범위에서 공유하는 비동기 DB 세션.
+    """
     service = StarService(session)
     view_repo = ViewEventRepository(session)
     try:

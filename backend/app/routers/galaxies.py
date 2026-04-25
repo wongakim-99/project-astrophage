@@ -18,7 +18,13 @@ async def list_galaxies(
     current_user: CurrentUser,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> list[GalaxyResponse]:
-    """인증된 사용자의 은하만 반환한다."""
+    """
+    인증된 사용자의 은하만 반환한다.
+
+    Args:
+        current_user: Bearer access token에서 확인한 현재 사용자.
+        session: 요청 범위에서 공유하는 비동기 DB 세션.
+    """
     service = GalaxyService(session)
     galaxies = await service.list_galaxies(current_user.id)
     return [GalaxyResponse(**g) for g in galaxies]
@@ -30,7 +36,14 @@ async def create_galaxy(
     current_user: CurrentUser,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> GalaxyResponse:
-    """사용자 범위 은하를 생성한다. 슬러그 충돌은 명시적 오류로 처리한다."""
+    """
+    사용자 범위 은하를 생성한다. 슬러그 충돌은 명시적 오류로 처리한다.
+
+    Args:
+        body: name, slug, 선택적 color가 담긴 은하 생성 요청 본문.
+        current_user: Bearer access token에서 확인한 현재 사용자.
+        session: 요청 범위에서 공유하는 비동기 DB 세션.
+    """
     service = GalaxyService(session)
     try:
         galaxy = await service.create_galaxy(
@@ -51,6 +64,15 @@ async def update_galaxy(
     current_user: CurrentUser,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> GalaxyResponse:
+    """
+    인증된 사용자가 소유한 은하의 표시 이름과 색상을 수정한다.
+
+    Args:
+        galaxy_id: 수정할 Galaxy의 path UUID.
+        body: 변경할 name과 color가 담긴 은하 수정 요청 본문. 생략된 필드는 유지한다.
+        current_user: Bearer access token에서 확인한 현재 사용자.
+        session: 요청 범위에서 공유하는 비동기 DB 세션.
+    """
     service = GalaxyService(session)
     try:
         galaxy = await service.update_galaxy(
@@ -70,6 +92,14 @@ async def delete_galaxy(
     current_user: CurrentUser,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> MessageResponse:
+    """
+    인증된 사용자가 소유한 은하를 삭제한다.
+
+    Args:
+        galaxy_id: 삭제할 Galaxy의 path UUID.
+        current_user: Bearer access token에서 확인한 현재 사용자.
+        session: 요청 범위에서 공유하는 비동기 DB 세션.
+    """
     service = GalaxyService(session)
     try:
         await service.delete_galaxy(user_id=current_user.id, galaxy_id=galaxy_id)

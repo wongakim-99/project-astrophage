@@ -72,22 +72,25 @@ class StarRepository:
         )
         return list(result.scalars().all())
 
-    async def list_public(self, limit: int = 50, offset: int = 0) -> list[Star]:
+    async def list_public(self, limit: int = 50, offset: int = 0) -> list[tuple[Star, str]]:
         """
-        공개 explore 피드용 목록. 화면 표시용 필드는 호출자가 별도로 붙인다.
+        공개 explore 피드용 목록. User JOIN으로 username을 함께 반환해 N+1을 방지한다.
 
         Args:
             limit: 한 번에 가져올 공개 Star 최대 개수.
             offset: 페이지네이션을 위해 건너뛸 공개 Star 개수.
         """
+        from app.models.user import User
+
         result = await self._session.execute(
-            select(Star)
+            select(Star, User.username)
+            .join(User, Star.user_id == User.id)
             .where(Star.is_public == True)  # noqa: E712
             .order_by(Star.updated_at.desc())
             .limit(limit)
             .offset(offset)
         )
-        return list(result.scalars().all())
+        return [(row[0], row[1]) for row in result.all()]
 
     async def find_similar_in_galaxy(
         self,

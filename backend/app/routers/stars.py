@@ -8,6 +8,7 @@ from app.core.database import get_session
 from app.core.dependencies import CurrentUser
 from app.schemas.common import MessageResponse
 from app.schemas.star import (
+    PreviewSimilarRequest,
     SimilarStarPreview,
     StarCreate,
     StarResponse,
@@ -43,9 +44,7 @@ async def list_stars_in_galaxy(
 
 @router.post("/preview-similar", response_model=list[SimilarStarPreview])
 async def preview_similar(
-    galaxy_id: uuid.UUID,
-    title: str,
-    content: str,
+    body: PreviewSimilarRequest,
     current_user: CurrentUser,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> list[SimilarStarPreview]:
@@ -53,15 +52,13 @@ async def preview_similar(
     의미적으로 가까운 이웃을 미리 본다. 이 POST는 의도적으로 임베딩을 호출한다.
 
     Args:
-        galaxy_id: 유사 항성을 검색할 Galaxy UUID.
-        title: 저장 전 미리보기에 사용할 임시 항성 제목.
-        content: 저장 전 미리보기에 사용할 임시 항성 본문.
+        body: galaxy_id, title, content가 담긴 유사 항성 미리보기 요청 본문.
         current_user: Bearer access token에서 확인한 현재 사용자.
         session: 요청 범위에서 공유하는 비동기 DB 세션.
     """
     service = StarService(session)
     try:
-        return await service.preview_similar(current_user.id, galaxy_id, title, content)
+        return await service.preview_similar(current_user.id, body.galaxy_id, body.title, body.content)
     except StarError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
 

@@ -4,7 +4,6 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
-from app.repositories.user_repo import UserRepository
 from app.repositories.view_event_repo import ViewEventRepository
 from app.schemas.star import StarPublicResponse
 from app.services.lifecycle import compute_lifecycle
@@ -21,6 +20,7 @@ async def list_public_stars(
 ) -> list[StarPublicResponse]:
     """
     공개 카드 피드. is_public=true인 항성만 여기에 노출된다.
+    star+username은 JOIN 1회, 생애주기 이벤트는 배치 2회로 총 쿼리 3회.
 
     Args:
         session: 요청 범위에서 공유하는 비동기 DB 세션.
@@ -28,27 +28,29 @@ async def list_public_stars(
         offset: 페이지네이션을 위해 앞에서 건너뛸 공개 항성 개수.
     """
     service = StarService(session)
-    stars = await service.list_public(limit=limit, offset=offset)
+    pairs = await service.list_public(limit=limit, offset=offset)
+    if not pairs:
+        return []
 
-    user_repo = UserRepository(session)
     view_repo = ViewEventRepository(session)
+    star_ids = [star.id for star, _ in pairs]
+    recent_map = await view_repo.list_recent_by_stars(star_ids, days=30)
+    last_valid_map = await view_repo.get_last_valids(star_ids)
+
     result = []
-    for star in stars:
-        user = await user_repo.get_by_id(star.user_id)
-        if user is None:
-            continue
-        recent = await view_repo.list_recent_by_star(star.id, days=30)
-        last_valid = await view_repo.get_last_valid(star.id)
-        state, _ = compute_lifecycle(recent, last_valid)
+    for star, username in pairs:
+        state, _ = compute_lifecycle(recent_map[star.id], last_valid_map[star.id])
         result.append(
             StarPublicResponse(
                 id=star.id,
-                username=user.username,
+                username=username,
                 galaxy_id=star.galaxy_id,
                 title=star.title,
                 slug=star.slug,
                 content=star.content,
                 lifecycle_state=state,
+                created_at=star.created_at,
+                updated_at=star.updated_at,
             )
         )
     return result
@@ -87,4 +89,6 @@ async def get_public_star(
         slug=star.slug,
         content=star.content,
         lifecycle_state=state,
+        created_at=star.created_at,
+        updated_at=star.updated_at,
     )

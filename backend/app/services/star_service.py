@@ -238,9 +238,9 @@ class StarService:
         await self._session.commit()
         return await self._to_response(star)
 
-    async def list_public(self, limit: int, offset: int) -> list[Star]:
+    async def list_public(self, limit: int, offset: int) -> list[tuple[Star, str]]:
         """
-        공개 explore 피드에 노출할 항성 목록을 가져온다.
+        공개 explore 피드에 노출할 (항성, username) 쌍 목록을 가져온다.
 
         Args:
             limit: 한 번에 가져올 공개 항성 최대 개수.
@@ -295,6 +295,8 @@ class StarService:
             is_public=star.is_public,
             lifecycle_state=state,
             energy_score=energy,
+            created_at=star.created_at,
+            updated_at=star.updated_at,
         )
 
     async def _get_owned(self, user_id: uuid.UUID, star_id: uuid.UUID) -> Star:

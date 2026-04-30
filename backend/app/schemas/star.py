@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 from enum import StrEnum
 
 from pydantic import BaseModel, Field
@@ -45,6 +46,8 @@ class StarResponse(BaseModel):
     is_public: bool
     lifecycle_state: LifecycleState = LifecycleState.YELLOW_DWARF
     energy_score: float = 0.0
+    created_at: datetime
+    updated_at: datetime
 
     model_config = {"from_attributes": True}
 
@@ -58,8 +61,18 @@ class StarPublicResponse(BaseModel):
     slug: str
     content: str
     lifecycle_state: LifecycleState
+    created_at: datetime
+    updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class PreviewSimilarRequest(BaseModel):
+    """유사 항성 미리보기 요청 본문. 마크다운 본문이 길 수 있으므로 query param이 아닌 body로 받는다."""
+
+    galaxy_id: uuid.UUID
+    title: str = Field(min_length=1, max_length=200)
+    content: str = Field(default="")
 
 
 class SimilarStarPreview(BaseModel):

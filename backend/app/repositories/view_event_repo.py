@@ -48,6 +48,53 @@ class ViewEventRepository:
         )
         return result.scalar_one_or_none()
 
+    async def list_recent_by_stars(
+        self, star_ids: list[uuid.UUID], days: int = 30
+    ) -> dict[uuid.UUID, list[ViewEvent]]:
+        """
+        여러 항성의 최근 이벤트를 쿼리 1회로 가져와 star_id별로 묶어 반환한다.
+        explore 피드처럼 다수 항성의 생애주기를 한 번에 계산할 때 N+1을 방지한다.
+
+        Args:
+            star_ids: 이벤트를 조회할 Star UUID 목록.
+            days: 현재 시각부터 거슬러 올라갈 조회 기간(일).
+        """
+        if not star_ids:
+            return {}
+        since = datetime.now(UTC) - timedelta(days=days)
+        result = await self._session.execute(
+            select(ViewEvent)
+            .where(ViewEvent.star_id.in_(star_ids), ViewEvent.started_at >= since)
+            .order_by(ViewEvent.started_at.desc())
+        )
+        grouped: dict[uuid.UUID, list[ViewEvent]] = {sid: [] for sid in star_ids}
+        for event in result.scalars().all():
+            grouped[event.star_id].append(event)
+        return grouped
+
+    async def get_last_valids(
+        self, star_ids: list[uuid.UUID]
+    ) -> dict[uuid.UUID, ViewEvent | None]:
+        """
+        여러 항성의 최신 유효 이벤트를 쿼리 1회로 가져와 star_id별로 반환한다.
+        비활성 기간 계산에 필요하며, explore 피드에서 N+1을 방지한다.
+
+        Args:
+            star_ids: 최신 유효 이벤트를 찾을 Star UUID 목록.
+        """
+        if not star_ids:
+            return {}
+        result = await self._session.execute(
+            select(ViewEvent)
+            .where(ViewEvent.star_id.in_(star_ids), ViewEvent.is_valid == True)  # noqa: E712
+            .order_by(ViewEvent.started_at.desc())
+        )
+        last_valid: dict[uuid.UUID, ViewEvent | None] = {sid: None for sid in star_ids}
+        for event in result.scalars().all():
+            if last_valid[event.star_id] is None:
+                last_valid[event.star_id] = event
+        return last_valid
+
     async def create(
         self,
         star_id: uuid.UUID,

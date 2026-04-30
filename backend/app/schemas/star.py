@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 from enum import StrEnum
 
 from pydantic import BaseModel, Field
@@ -45,6 +46,8 @@ class StarResponse(BaseModel):
     is_public: bool
     lifecycle_state: LifecycleState = LifecycleState.YELLOW_DWARF
     energy_score: float = 0.0
+    created_at: datetime
+    updated_at: datetime
 
     model_config = {"from_attributes": True}
 
@@ -58,6 +61,8 @@ class StarPublicResponse(BaseModel):
     slug: str
     content: str
     lifecycle_state: LifecycleState
+    created_at: datetime
+    updated_at: datetime
 
     model_config = {"from_attributes": True}
 

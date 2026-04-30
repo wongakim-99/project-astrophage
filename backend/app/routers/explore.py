@@ -49,6 +49,8 @@ async def list_public_stars(
                 slug=star.slug,
                 content=star.content,
                 lifecycle_state=state,
+                created_at=star.created_at,
+                updated_at=star.updated_at,
             )
         )
     return result
@@ -87,4 +89,6 @@ async def get_public_star(
         slug=star.slug,
         content=star.content,
         lifecycle_state=state,
+        created_at=star.created_at,
+        updated_at=star.updated_at,
     )

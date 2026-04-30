@@ -295,6 +295,8 @@ class StarService:
             is_public=star.is_public,
             lifecycle_state=state,
             energy_score=energy,
+            created_at=star.created_at,
+            updated_at=star.updated_at,
         )
 
     async def _get_owned(self, user_id: uuid.UUID, star_id: uuid.UUID) -> Star:

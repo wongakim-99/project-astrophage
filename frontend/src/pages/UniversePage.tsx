@@ -1,9 +1,32 @@
-
+import { useCallback } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { MapControls, Stars } from '@react-three/drei';
+import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import { useNavigate } from 'react-router';
 import GalaxyCluster from '../components/three/GalaxyCluster';
 import { useGalaxyStore } from '../stores/galaxyStore';
+
+// 은하들이 원점 기준 최대 ±35 범위. 45면 모든 은하를 탐색하면서 이탈을 막는다.
+function CameraControls() {
+  const refCallback = useCallback((controls: any) => {
+    if (controls) {
+      controls.maxTargetRadius = 45;
+    }
+  }, []);
+
+  return (
+    <MapControls
+      ref={refCallback}
+      makeDefault
+      enableRotate={false}
+      enableDamping
+      dampingFactor={0.04}
+      zoomSpeed={0.6}
+      maxDistance={260}
+      minDistance={15}
+    />
+  );
+}
 
 export default function UniversePage() {
   const galaxies = useGalaxyStore((state) => state.galaxies);
@@ -15,12 +38,12 @@ export default function UniversePage() {
         <h1 className="text-2xl font-bold tracking-widest text-brand-active drop-shadow-[0_0_10px_rgba(168,216,255,0.5)]">UNIVERSE VIEW</h1>
         <p className="text-sm opacity-70">모든 지식의 은하단</p>
       </div>
-      
+
       <Canvas camera={{ position: [0, 0, 80], fov: 60 }}>
         <color attach="background" args={['#050510']} />
         <ambientLight intensity={0.5} />
         <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
-        
+
         {galaxies.map((galaxy) => (
           <GalaxyCluster
             key={galaxy.id}
@@ -30,8 +53,17 @@ export default function UniversePage() {
             onClick={() => navigate(`/galaxy/${galaxy.id}`)}
           />
         ))}
-        
-        <MapControls enableRotate={false} maxDistance={200} minDistance={20} />
+
+        <CameraControls />
+
+        <EffectComposer>
+          <Bloom
+            luminanceThreshold={0.15}
+            luminanceSmoothing={0.9}
+            intensity={1.5}
+            mipmapBlur
+          />
+        </EffectComposer>
       </Canvas>
     </div>
   );

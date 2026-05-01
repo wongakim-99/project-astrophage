@@ -1,35 +1,58 @@
-import { useEffect } from 'react';
+import { useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { Canvas } from '@react-three/fiber';
 import { MapControls, Stars } from '@react-three/drei';
+import { EffectComposer, Bloom } from '@react-three/postprocessing';
+import { useEffect } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import StarMesh from '../components/three/StarMesh';
 import StarPanel from '../components/ui/StarPanel';
 import { useStarStore } from '../stores/starStore';
 import { useGalaxyStore } from '../stores/galaxyStore';
 
+// 별들이 ±8 범위에 분포하므로 25 정도면 충분히 탐색하면서 이탈을 막는다.
+// useEffect 대신 콜백 ref를 써야 controls 마운트 즉시 설정이 보장된다.
+function CameraControls() {
+  const refCallback = useCallback((controls: any) => {
+    if (controls) {
+      controls.maxTargetRadius = 25;
+    }
+  }, []);
+
+  return (
+    <MapControls
+      ref={refCallback}
+      makeDefault
+      enableRotate={false}
+      enableDamping
+      dampingFactor={0.04}
+      zoomSpeed={0.6}
+      maxDistance={130}
+      minDistance={3}
+    />
+  );
+}
+
 export default function GalaxyPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  
+
   const galaxies = useGalaxyStore((state) => state.galaxies);
   const galaxy = galaxies.find(g => g.id === id);
-  
+
   const stars = useStarStore((state) => state.stars);
   const selectStar = useStarStore((state) => state.selectStar);
-  
+
   const galaxyStars = stars.filter(s => s.galaxyId === id);
 
-  // Clear selected star when unmounting
   useEffect(() => {
     return () => selectStar(null);
   }, [selectStar]);
 
   return (
     <div className="w-full h-full relative overflow-hidden">
-      {/* Header UI */}
       <div className="absolute top-4 left-4 z-10 text-white flex flex-col gap-2">
-        <button 
+        <button
           onClick={() => navigate('/universe')}
           className="flex items-center gap-2 text-sm text-foreground/70 hover:text-white transition-colors bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-full backdrop-blur-md w-fit border border-white/10"
         >
@@ -59,11 +82,19 @@ export default function GalaxyPage() {
             onClick={() => selectStar(star.slug)}
           />
         ))}
-        
-        <MapControls enableRotate={false} maxDistance={100} minDistance={5} />
+
+        <CameraControls />
+
+        <EffectComposer>
+          <Bloom
+            luminanceThreshold={0.15}
+            luminanceSmoothing={0.9}
+            intensity={1.2}
+            mipmapBlur
+          />
+        </EffectComposer>
       </Canvas>
 
-      {/* Side Panel */}
       <StarPanel />
     </div>
   );

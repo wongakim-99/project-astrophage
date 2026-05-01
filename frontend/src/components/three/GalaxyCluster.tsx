@@ -115,12 +115,6 @@ export default function GalaxyCluster({ position, color, name, onClick }: Galaxy
         <meshBasicMaterial color="#fff6e0" />
       </mesh>
 
-      {/* 외곽 성운 헤일로 */}
-      <mesh>
-        <sphereGeometry args={[7, 16, 16]} />
-        <meshBasicMaterial color={color} transparent opacity={0.03} side={THREE.BackSide} />
-      </mesh>
-
       {/* 투명 클릭 히트박스 */}
       <mesh onClick={onClick}>
         <sphereGeometry args={[10, 8, 8]} />

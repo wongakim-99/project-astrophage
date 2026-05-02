@@ -26,9 +26,18 @@ export default function StarMesh({ position, color, size, name, onClick }: StarM
       <sphereGeometry args={[size, 32, 32]} />
       <meshStandardMaterial color={color} emissive={color} emissiveIntensity={0.5} />
       
-      {/* Label that shows up next to star */}
       <Html distanceFactor={15} center>
-        <div className="bg-black/50 backdrop-blur-sm px-2 py-1 rounded text-xs text-white pointer-events-none transform translate-y-4 shadow-lg border border-white/10 whitespace-nowrap">
+        <div
+          className="pointer-events-none select-none whitespace-nowrap"
+          style={{
+            fontSize: '9px',
+            fontFamily: 'ui-monospace, "Cascadia Code", Consolas, monospace',
+            color: 'rgba(200, 200, 220, 0.6)',
+            textShadow: '0 1px 4px rgba(0,0,0,1), 0 0 12px rgba(0,0,0,0.9)',
+            transform: 'translateY(14px)',
+            letterSpacing: '0.04em',
+          }}
+        >
           {name}
         </div>
       </Html>

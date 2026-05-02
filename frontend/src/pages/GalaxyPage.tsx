@@ -1,27 +1,41 @@
-import { useCallback } from 'react';
+import { useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { Canvas } from '@react-three/fiber';
 import { MapControls, Stars } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
-import { useEffect } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import StarMesh from '../components/three/StarMesh';
 import StarPanel from '../components/ui/StarPanel';
 import { useStarStore } from '../stores/starStore';
 import { useGalaxyStore } from '../stores/galaxyStore';
 
-// 별들이 ±8 범위에 분포하므로 25 정도면 충분히 탐색하면서 이탈을 막는다.
-// useEffect 대신 콜백 ref를 써야 controls 마운트 즉시 설정이 보장된다.
+const PAN_LIMIT = 25;
+
 function CameraControls() {
-  const refCallback = useCallback((controls: any) => {
-    if (controls) {
-      controls.maxTargetRadius = 25;
-    }
+  const ref = useRef<any>(null);
+
+  useEffect(() => {
+    const c = ref.current;
+    if (!c) return;
+
+    const clamp = () => {
+      const nx = Math.max(-PAN_LIMIT, Math.min(PAN_LIMIT, c.target.x));
+      const ny = Math.max(-PAN_LIMIT, Math.min(PAN_LIMIT, c.target.y));
+      if (nx !== c.target.x || ny !== c.target.y) {
+        c.target.x = nx;
+        c.target.y = ny;
+        c.object.position.x = nx;
+        c.object.position.y = ny;
+      }
+    };
+
+    c.addEventListener('change', clamp);
+    return () => c.removeEventListener('change', clamp);
   }, []);
 
   return (
     <MapControls
-      ref={refCallback}
+      ref={ref}
       makeDefault
       enableRotate={false}
       enableDamping
@@ -51,19 +65,19 @@ export default function GalaxyPage() {
 
   return (
     <div className="w-full h-full relative overflow-hidden">
-      <div className="absolute top-4 left-4 z-10 text-white flex flex-col gap-2">
+      <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
         <button
           onClick={() => navigate('/universe')}
-          className="flex items-center gap-2 text-sm text-foreground/70 hover:text-white transition-colors bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-full backdrop-blur-md w-fit border border-white/10"
+          className="flex items-center gap-1.5 text-[11px] font-mono text-white/30 hover:text-white/60 transition-colors bg-white/[0.03] hover:bg-white/[0.06] px-3 py-1.5 rounded border border-white/[0.06] hover:border-white/[0.12] w-fit"
         >
-          <ArrowLeft size={16} />
-          <span>Back to Universe</span>
+          <ArrowLeft size={12} />
+          <span>universe</span>
         </button>
-        <div className="pointer-events-none mt-2">
-          <h1 className="text-3xl font-bold tracking-widest drop-shadow-lg" style={{ color: galaxy?.color || '#fff' }}>
-            {galaxy?.name || 'UNKNOWN GALAXY'}
+        <div className="pointer-events-none mt-1">
+          <h1 className="text-lg font-mono font-medium tracking-wider" style={{ color: galaxy?.color || '#fff' }}>
+            {galaxy?.name || 'unknown galaxy'}
           </h1>
-          <p className="text-sm opacity-70">{galaxyStars.length} stars discovered</p>
+          <p className="text-[11px] font-mono text-white/25 mt-0.5">{galaxyStars.length} stars</p>
         </div>
       </div>
 

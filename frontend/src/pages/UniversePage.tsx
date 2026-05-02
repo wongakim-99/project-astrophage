@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useRef, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { MapControls, Stars } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
@@ -6,17 +6,35 @@ import { useNavigate } from 'react-router';
 import GalaxyCluster from '../components/three/GalaxyCluster';
 import { useGalaxyStore } from '../stores/galaxyStore';
 
-// 은하들이 원점 기준 최대 ±35 범위. 45면 모든 은하를 탐색하면서 이탈을 막는다.
+const PAN_LIMIT = 45;
+
 function CameraControls() {
-  const refCallback = useCallback((controls: any) => {
-    if (controls) {
-      controls.maxTargetRadius = 45;
-    }
+  const ref = useRef<any>(null);
+
+  useEffect(() => {
+    const c = ref.current;
+    if (!c) return;
+
+    const clamp = () => {
+      const nx = Math.max(-PAN_LIMIT, Math.min(PAN_LIMIT, c.target.x));
+      const ny = Math.max(-PAN_LIMIT, Math.min(PAN_LIMIT, c.target.y));
+      if (nx !== c.target.x || ny !== c.target.y) {
+        c.target.x = nx;
+        c.target.y = ny;
+        // enableRotate:false 환경에서 camera.xy == target.xy 불변식 유지
+        // += dx 방식은 부동소수점 누적 오차가 spherical offset을 오염시켜 zoom에 간섭함
+        c.object.position.x = nx;
+        c.object.position.y = ny;
+      }
+    };
+
+    c.addEventListener('change', clamp);
+    return () => c.removeEventListener('change', clamp);
   }, []);
 
   return (
     <MapControls
-      ref={refCallback}
+      ref={ref}
       makeDefault
       enableRotate={false}
       enableDamping
@@ -34,9 +52,8 @@ export default function UniversePage() {
 
   return (
     <div className="w-full h-full relative">
-      <div className="absolute top-4 left-4 z-10 text-white pointer-events-none">
-        <h1 className="text-2xl font-bold tracking-widest text-brand-active drop-shadow-[0_0_10px_rgba(168,216,255,0.5)]">UNIVERSE VIEW</h1>
-        <p className="text-sm opacity-70">모든 지식의 은하단</p>
+      <div className="absolute top-4 left-4 z-10 pointer-events-none">
+        <p className="text-[11px] font-mono text-white/20 tracking-[0.25em] uppercase">universe</p>
       </div>
 
       <Canvas camera={{ position: [0, 0, 80], fov: 60 }}>

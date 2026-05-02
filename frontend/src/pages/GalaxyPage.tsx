@@ -1,55 +1,22 @@
-import { useRef, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { Canvas } from '@react-three/fiber';
-import { MapControls, Stars } from '@react-three/drei';
+import { Stars } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import { ArrowLeft } from 'lucide-react';
+import BoundedMapControls from '../components/three/BoundedMapControls';
 import StarMesh from '../components/three/StarMesh';
 import StarPanel from '../components/ui/StarPanel';
 import { useStarStore } from '../stores/starStore';
 import { useGalaxyStore } from '../stores/galaxyStore';
 
-const PAN_LIMIT = 25;
-
-function CameraControls() {
-  const ref = useRef<any>(null);
-
-  useEffect(() => {
-    const c = ref.current;
-    if (!c) return;
-
-    const clamp = () => {
-      const nx = Math.max(-PAN_LIMIT, Math.min(PAN_LIMIT, c.target.x));
-      const ny = Math.max(-PAN_LIMIT, Math.min(PAN_LIMIT, c.target.y));
-      if (nx !== c.target.x || ny !== c.target.y) {
-        c.target.x = nx;
-        c.target.y = ny;
-        c.object.position.x = nx;
-        c.object.position.y = ny;
-      }
-    };
-
-    c.addEventListener('change', clamp);
-    return () => c.removeEventListener('change', clamp);
-  }, []);
-
-  return (
-    <MapControls
-      ref={ref}
-      makeDefault
-      enableRotate={false}
-      enableDamping
-      dampingFactor={0.04}
-      zoomSpeed={0.6}
-      maxDistance={130}
-      minDistance={3}
-    />
-  );
-}
-
 export default function GalaxyPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [navigationState, setNavigationState] = useState({
+    vignetteIntensity: 0,
+    showRecenterCue: false,
+  });
 
   const galaxies = useGalaxyStore((state) => state.galaxies);
   const galaxy = galaxies.find(g => g.id === id);
@@ -63,9 +30,11 @@ export default function GalaxyPage() {
     return () => selectStar(null);
   }, [selectStar]);
 
+  const vignetteEdge = 0.48 + navigationState.vignetteIntensity * 0.28;
+
   return (
     <div className="w-full h-full relative overflow-hidden">
-      <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
+      <div className="absolute top-4 left-4 z-20 flex flex-col gap-2">
         <button
           onClick={() => navigate('/universe')}
           className="flex items-center gap-1.5 text-[11px] font-mono text-white/30 hover:text-white/60 transition-colors bg-white/[0.03] hover:bg-white/[0.06] px-3 py-1.5 rounded border border-white/[0.06] hover:border-white/[0.12] w-fit"
@@ -97,7 +66,11 @@ export default function GalaxyPage() {
           />
         ))}
 
-        <CameraControls />
+        <BoundedMapControls
+          minDistance={8}
+          maxDistance={130}
+          onNavigationStateChange={setNavigationState}
+        />
 
         <EffectComposer>
           <Bloom
@@ -108,6 +81,22 @@ export default function GalaxyPage() {
           />
         </EffectComposer>
       </Canvas>
+
+      <div
+        className="pointer-events-none absolute inset-0 z-10 transition-opacity duration-150"
+        style={{
+          opacity: navigationState.vignetteIntensity,
+          background: `radial-gradient(circle at center, rgba(0,0,0,0) 38%, rgba(0,0,0,0.22) 68%, rgba(0,0,0,${vignetteEdge}) 100%)`,
+        }}
+      />
+
+      <div
+        className={`pointer-events-none absolute bottom-6 left-1/2 z-20 -translate-x-1/2 rounded border border-white/[0.08] bg-black/25 px-3 py-1.5 font-mono text-[10px] tracking-[0.24em] text-white/35 backdrop-blur-sm transition-all duration-200 ${
+          navigationState.showRecenterCue ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0'
+        }`}
+      >
+        [ SPACE : RECENTER ]
+      </div>
 
       <StarPanel />
     </div>

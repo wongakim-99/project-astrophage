@@ -1,58 +1,25 @@
-import { useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { MapControls, Stars } from '@react-three/drei';
+import { Stars } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import { useNavigate } from 'react-router';
+import BoundedMapControls from '../components/three/BoundedMapControls';
 import GalaxyCluster from '../components/three/GalaxyCluster';
 import { useGalaxyStore } from '../stores/galaxyStore';
-
-const PAN_LIMIT = 45;
-
-function CameraControls() {
-  const ref = useRef<any>(null);
-
-  useEffect(() => {
-    const c = ref.current;
-    if (!c) return;
-
-    const clamp = () => {
-      const nx = Math.max(-PAN_LIMIT, Math.min(PAN_LIMIT, c.target.x));
-      const ny = Math.max(-PAN_LIMIT, Math.min(PAN_LIMIT, c.target.y));
-      if (nx !== c.target.x || ny !== c.target.y) {
-        c.target.x = nx;
-        c.target.y = ny;
-        // enableRotate:false 환경에서 camera.xy == target.xy 불변식 유지
-        // += dx 방식은 부동소수점 누적 오차가 spherical offset을 오염시켜 zoom에 간섭함
-        c.object.position.x = nx;
-        c.object.position.y = ny;
-      }
-    };
-
-    c.addEventListener('change', clamp);
-    return () => c.removeEventListener('change', clamp);
-  }, []);
-
-  return (
-    <MapControls
-      ref={ref}
-      makeDefault
-      enableRotate={false}
-      enableDamping
-      dampingFactor={0.04}
-      zoomSpeed={0.6}
-      maxDistance={260}
-      minDistance={15}
-    />
-  );
-}
 
 export default function UniversePage() {
   const galaxies = useGalaxyStore((state) => state.galaxies);
   const navigate = useNavigate();
+  const [navigationState, setNavigationState] = useState({
+    vignetteIntensity: 0,
+    showRecenterCue: false,
+  });
+
+  const vignetteEdge = 0.48 + navigationState.vignetteIntensity * 0.28;
 
   return (
     <div className="w-full h-full relative">
-      <div className="absolute top-4 left-4 z-10 pointer-events-none">
+      <div className="absolute top-4 left-4 z-20 pointer-events-none">
         <p className="text-[11px] font-mono text-white/20 tracking-[0.25em] uppercase">universe</p>
       </div>
 
@@ -71,7 +38,11 @@ export default function UniversePage() {
           />
         ))}
 
-        <CameraControls />
+        <BoundedMapControls
+          minDistance={18}
+          maxDistance={260}
+          onNavigationStateChange={setNavigationState}
+        />
 
         <EffectComposer>
           <Bloom
@@ -82,6 +53,22 @@ export default function UniversePage() {
           />
         </EffectComposer>
       </Canvas>
+
+      <div
+        className="pointer-events-none absolute inset-0 z-10 transition-opacity duration-150"
+        style={{
+          opacity: navigationState.vignetteIntensity,
+          background: `radial-gradient(circle at center, rgba(0,0,0,0) 38%, rgba(0,0,0,0.22) 68%, rgba(0,0,0,${vignetteEdge}) 100%)`,
+        }}
+      />
+
+      <div
+        className={`pointer-events-none absolute bottom-6 left-1/2 z-20 -translate-x-1/2 rounded border border-white/[0.08] bg-black/25 px-3 py-1.5 font-mono text-[10px] tracking-[0.24em] text-white/35 backdrop-blur-sm transition-all duration-200 ${
+          navigationState.showRecenterCue ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0'
+        }`}
+      >
+        [ SPACE : RECENTER ]
+      </div>
     </div>
   );
 }

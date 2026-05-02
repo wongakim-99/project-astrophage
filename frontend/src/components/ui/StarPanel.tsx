@@ -17,9 +17,14 @@ export default function StarPanel() {
 
   return (
     <div
-      className={`fixed top-16 right-0 w-80 h-[calc(100vh-4rem)] bg-[#07071a] border-l border-white/[0.05] shadow-2xl transition-transform duration-300 ease-in-out z-30 flex flex-col ${
+      className={`fixed top-16 right-0 w-80 h-[calc(100vh-4rem)] transition-transform duration-300 ease-in-out z-30 flex flex-col ${
         isPanelOpen && star ? 'translate-x-0' : 'translate-x-full'
       }`}
+      style={{
+        background: 'rgba(5, 5, 22, 0.96)',
+        borderLeft: '1px solid rgba(139, 92, 246, 0.14)',
+        boxShadow: '-12px 0 28px rgba(139, 92, 246, 0.06), inset 0 0 60px rgba(80, 40, 160, 0.03)',
+      }}
     >
       {star && (
         <>
@@ -48,31 +53,38 @@ export default function StarPanel() {
             </div>
           </div>
 
-          {/* Properties — Obsidian frontmatter style */}
-          <div className="px-5 py-3 border-b border-white/[0.05]">
-            <div className="text-[9px] font-mono text-white/20 mb-3 tracking-[0.2em] uppercase">
-              Properties
+          {/* Properties — Obsidian frontmatter / terminal manifest style */}
+          <div className="px-5 py-3 border-b border-white/[0.04]">
+            <div className="text-[9px] font-mono text-white/18 mb-3 tracking-[0.25em] uppercase"
+              style={{ color: 'rgba(139,92,246,0.45)' }}>
+              — properties
             </div>
             <div className="space-y-2">
               <div className="flex items-center gap-3">
-                <span className="text-[10px] font-mono text-white/25 w-16 shrink-0">visibility</span>
+                <span className="text-[10px] font-mono text-white/22 w-16 shrink-0 tracking-wider">vis</span>
                 <span
-                  className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
+                  className={`text-[10px] font-mono px-1.5 py-0.5 rounded tracking-wider ${
                     star.isPublic
                       ? 'text-brand-active bg-brand-active/10'
-                      : 'text-white/35 bg-white/[0.04]'
+                      : 'text-white/30 bg-white/[0.04]'
                   }`}
                 >
                   {star.isPublic ? 'public' : 'private'}
                 </span>
               </div>
               <div className="flex items-center gap-3">
-                <span className="text-[10px] font-mono text-white/25 w-16 shrink-0">size</span>
-                <span className="text-[10px] font-mono text-white/40">{star.size.toFixed(1)} au</span>
+                <span className="text-[10px] font-mono text-white/22 w-16 shrink-0 tracking-wider">size</span>
+                <span className="text-[10px] font-mono text-white/40 tracking-wider">{star.size.toFixed(1)} au</span>
               </div>
               <div className="flex items-center gap-3">
-                <span className="text-[10px] font-mono text-white/25 w-16 shrink-0">energy</span>
-                <span className="text-[10px] font-mono text-white/25">—</span>
+                <span className="text-[10px] font-mono text-white/22 w-16 shrink-0 tracking-wider">coords</span>
+                <span className="text-[10px] font-mono text-white/30 tracking-wider">
+                  {star.position[0].toFixed(1)}, {star.position[1].toFixed(1)}
+                </span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-[10px] font-mono text-white/22 w-16 shrink-0 tracking-wider">energy</span>
+                <span className="text-[10px] font-mono tracking-wider" style={{ color: 'rgba(139,92,246,0.4)' }}>—</span>
               </div>
             </div>
           </div>

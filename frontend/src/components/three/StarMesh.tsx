@@ -4,6 +4,132 @@ import * as THREE from 'three';
 import { Html } from '@react-three/drei';
 
 const PARTICLE_COUNT = 14;
+const STAR_SCALE = 0.7;
+const PURPLE_SCATTER = new THREE.Color('#9d7cff');
+const WHITE_CORE = new THREE.Color('#fff8e8');
+
+const starVertexShader = `
+  varying vec2 vUv;
+  varying vec3 vNormal;
+  varying vec3 vWorldPosition;
+
+  void main() {
+    vUv = uv;
+    vNormal = normalize(normalMatrix * normal);
+
+    vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+    vWorldPosition = worldPosition.xyz;
+
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+
+const starFragmentShader = `
+  uniform float uTime;
+  uniform float uHoverIntensity;
+  uniform vec3 uBaseColor;
+  uniform vec3 uCoreColor;
+  uniform vec3 uScatterColor;
+
+  varying vec2 vUv;
+  varying vec3 vNormal;
+  varying vec3 vWorldPosition;
+
+  float hash(vec3 p) {
+    p = fract(p * 0.3183099 + vec3(0.1, 0.2, 0.3));
+    p *= 17.0;
+    return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+  }
+
+  float noise(vec3 x) {
+    vec3 i = floor(x);
+    vec3 f = fract(x);
+    f = f * f * (3.0 - 2.0 * f);
+
+    return mix(
+      mix(
+        mix(hash(i + vec3(0.0, 0.0, 0.0)), hash(i + vec3(1.0, 0.0, 0.0)), f.x),
+        mix(hash(i + vec3(0.0, 1.0, 0.0)), hash(i + vec3(1.0, 1.0, 0.0)), f.x),
+        f.y
+      ),
+      mix(
+        mix(hash(i + vec3(0.0, 0.0, 1.0)), hash(i + vec3(1.0, 0.0, 1.0)), f.x),
+        mix(hash(i + vec3(0.0, 1.0, 1.0)), hash(i + vec3(1.0, 1.0, 1.0)), f.x),
+        f.y
+      ),
+      f.z
+    );
+  }
+
+  float fbm(vec3 p) {
+    float value = 0.0;
+    float amplitude = 0.55;
+
+    for (int i = 0; i < 5; i++) {
+      value += amplitude * noise(p);
+      p *= 2.02;
+      amplitude *= 0.52;
+    }
+
+    return value;
+  }
+
+  void main() {
+    vec3 viewDirection = normalize(cameraPosition - vWorldPosition);
+    float fresnel = pow(1.0 - max(dot(normalize(vNormal), viewDirection), 0.0), 2.35);
+
+    vec3 flow = vec3(vUv * 4.0, 0.0);
+    float slowTime = uTime * 0.08;
+    float plasma = fbm(flow + vec3(slowTime, -slowTime * 0.7, slowTime * 1.4));
+    float ember = fbm(flow * 1.9 + vec3(-slowTime * 1.8, slowTime, slowTime * 0.4));
+
+    float hotCore = smoothstep(0.48, 0.92, plasma + ember * 0.45);
+    vec3 surface = mix(uScatterColor, uBaseColor, 0.68 + ember * 0.24);
+    surface = mix(surface, uCoreColor, hotCore * 0.72);
+    surface += uScatterColor * fresnel * 1.55;
+    surface += uCoreColor * pow(fresnel, 4.0) * 0.85;
+
+    float pulse = 1.0 + sin(uTime * 0.9 + plasma * 5.0) * 0.045;
+    float energy = 1.12 + uHoverIntensity * 0.32 + hotCore * 0.34 + fresnel * 0.65;
+
+    gl_FragColor = vec4(surface * energy * pulse, 1.0);
+  }
+`;
+
+const coronaVertexShader = `
+  varying vec3 vNormal;
+  varying vec3 vWorldPosition;
+
+  void main() {
+    vNormal = normalize(normalMatrix * normal);
+
+    vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+    vWorldPosition = worldPosition.xyz;
+
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+
+const coronaFragmentShader = `
+  uniform float uTime;
+  uniform float uHoverIntensity;
+  uniform vec3 uBaseColor;
+  uniform vec3 uScatterColor;
+
+  varying vec3 vNormal;
+  varying vec3 vWorldPosition;
+
+  void main() {
+    vec3 viewDirection = normalize(cameraPosition - vWorldPosition);
+    float fresnel = pow(1.0 - max(dot(normalize(vNormal), viewDirection), 0.0), 2.0);
+    float pulse = 0.72 + sin(uTime * 0.65) * 0.08 + uHoverIntensity * 0.08;
+
+    vec3 corona = mix(uBaseColor, uScatterColor, 0.58) * (0.8 + fresnel * 1.7);
+    float alpha = smoothstep(0.05, 1.0, fresnel) * pulse * 0.34;
+
+    gl_FragColor = vec4(corona, alpha);
+  }
+`;
 
 interface StarMeshProps {
   position: [number, number, number];
@@ -88,10 +214,58 @@ function StarParticles({
 }
 
 export default function StarMesh({ position, color, size, name, onClick }: StarMeshProps) {
-  const meshRef   = useRef<THREE.Mesh>(null);
-  const matRef    = useRef<THREE.MeshStandardMaterial>(null);
+  const meshRef = useRef<THREE.Mesh>(null);
+  const leaderRef = useRef<THREE.Line>(null);
+  const surfaceMatRef = useRef<THREE.ShaderMaterial>(null);
+  const coronaMatRef = useRef<THREE.ShaderMaterial>(null);
   const [isHovered, setIsHovered] = useState(false);
-  const flickerRef = useRef({ intensity: 0.5, t: 0 });
+  const flickerRef = useRef({ intensity: 0, t: 0 });
+  const visualSize = size * STAR_SCALE;
+  const labelPosition = useMemo(
+    () => new THREE.Vector3(visualSize * 2.2, visualSize * 1.42, 0),
+    [visualSize]
+  );
+  const leaderLine = useMemo(() => {
+    const start = new THREE.Vector3(visualSize * 0.72, visualSize * 0.5, 0);
+    const end = new THREE.Vector3(labelPosition.x - visualSize * 0.18, labelPosition.y - visualSize * 0.1, 0);
+    const geometry = new THREE.BufferGeometry().setFromPoints([start, end]);
+    const material = new THREE.LineDashedMaterial({
+      color,
+      transparent: true,
+      opacity: 0.26,
+      dashSize: 0.06,
+      gapSize: 0.06,
+      depthWrite: false,
+    });
+    const line = new THREE.Line(geometry, material);
+    line.computeLineDistances();
+    return line;
+  }, [color, labelPosition, visualSize]);
+  const baseColor = useMemo(() => new THREE.Color(color), [color]);
+  const starUniforms = useMemo(() => ({
+    uTime: { value: 0 },
+    uHoverIntensity: { value: 0 },
+    uBaseColor: { value: baseColor },
+    uCoreColor: { value: WHITE_CORE },
+    uScatterColor: { value: PURPLE_SCATTER },
+  }), [baseColor]);
+  const coronaUniforms = useMemo(() => ({
+    uTime: { value: 0 },
+    uHoverIntensity: { value: 0 },
+    uBaseColor: { value: baseColor },
+    uScatterColor: { value: PURPLE_SCATTER },
+  }), [baseColor]);
+
+  useEffect(() => {
+    return () => {
+      leaderLine.geometry.dispose();
+      if (Array.isArray(leaderLine.material)) {
+        leaderLine.material.forEach((material) => material.dispose());
+      } else {
+        leaderLine.material.dispose();
+      }
+    };
+  }, [leaderLine]);
 
   useFrame((_, delta) => {
     const f = flickerRef.current;
@@ -101,20 +275,24 @@ export default function StarMesh({ position, color, size, name, onClick }: StarM
       meshRef.current.rotation.y += delta * 0.2;
     }
 
-    if (matRef.current) {
-      let target: number;
-      if (isHovered) {
-        // 비고조파 다중 주파수 → 불규칙 깜빡임
-        const noise =
-          0.5 * Math.sin(f.t * 17.3) +
-          0.3 * Math.sin(f.t *  6.7 + 1.2) +
-          0.2 * Math.sin(f.t * 38.1 + 2.4);
-        target = 1.3 + noise * 0.65;
-      } else {
-        target = 0.5;
+    const target = isHovered ? 1 : 0;
+    f.intensity = THREE.MathUtils.lerp(f.intensity, target, isHovered ? 0.18 : 0.08);
+
+    if (surfaceMatRef.current) {
+      surfaceMatRef.current.uniforms.uTime.value = f.t;
+      surfaceMatRef.current.uniforms.uHoverIntensity.value = f.intensity;
+    }
+
+    if (coronaMatRef.current) {
+      coronaMatRef.current.uniforms.uTime.value = f.t;
+      coronaMatRef.current.uniforms.uHoverIntensity.value = f.intensity;
+    }
+
+    if (leaderRef.current) {
+      const material = leaderRef.current.material;
+      if (!Array.isArray(material)) {
+        material.opacity = THREE.MathUtils.lerp(material.opacity, isHovered ? 0.5 : 0.26, 0.18);
       }
-      f.intensity = THREE.MathUtils.lerp(f.intensity, target, isHovered ? 0.25 : 0.08);
-      matRef.current.emissiveIntensity = f.intensity;
     }
   });
 
@@ -134,35 +312,54 @@ export default function StarMesh({ position, color, size, name, onClick }: StarM
           document.body.style.cursor = 'auto';
         }}
       >
-        <sphereGeometry args={[size, 32, 32]} />
-        <meshStandardMaterial
-          ref={matRef}
-          color={color}
-          emissive={color}
-          emissiveIntensity={0.5}
+        <sphereGeometry args={[visualSize, 64, 64]} />
+        <shaderMaterial
+          ref={surfaceMatRef}
+          uniforms={starUniforms}
+          vertexShader={starVertexShader}
+          fragmentShader={starFragmentShader}
         />
-
-        <Html distanceFactor={15} center>
-          <div
-            className="pointer-events-none select-none whitespace-nowrap"
-            style={{
-              fontSize: '9px',
-              fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-              color: isHovered ? 'rgba(220, 220, 245, 0.9)' : 'rgba(200, 200, 220, 0.55)',
-              textShadow: isHovered
-                ? '0 0 8px rgba(200, 200, 255, 0.5), 0 1px 4px rgba(0,0,0,1)'
-                : '0 1px 4px rgba(0,0,0,1)',
-              transform: 'translateY(14px)',
-              letterSpacing: '0.14em',
-              transition: 'color 0.15s, text-shadow 0.15s',
-            }}
-          >
-            {name.toLowerCase()}
-          </div>
-        </Html>
       </mesh>
 
-      <StarParticles active={isHovered} color={color} size={size} />
+      <mesh scale={1.9}>
+        <sphereGeometry args={[visualSize, 48, 48]} />
+        <shaderMaterial
+          ref={coronaMatRef}
+          uniforms={coronaUniforms}
+          vertexShader={coronaVertexShader}
+          fragmentShader={coronaFragmentShader}
+          transparent
+          depthWrite={false}
+          blending={THREE.AdditiveBlending}
+          side={THREE.BackSide}
+        />
+      </mesh>
+
+      <primitive ref={leaderRef} object={leaderLine} />
+
+      <Html distanceFactor={15} center position={labelPosition}>
+        <div
+          className="pointer-events-none select-none whitespace-nowrap"
+          style={{
+            fontSize: '8px',
+            fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
+            color: isHovered ? 'rgba(235, 235, 255, 0.92)' : 'rgba(210, 210, 230, 0.58)',
+            textShadow: isHovered
+              ? `0 0 10px ${color}, 0 1px 4px rgba(0,0,0,1)`
+              : '0 1px 4px rgba(0,0,0,1)',
+            letterSpacing: '0.16em',
+            lineHeight: 1,
+            padding: '3px 5px',
+            borderLeft: `1px solid ${isHovered ? color : 'rgba(220,220,245,0.24)'}`,
+            background: 'rgba(5, 5, 16, 0.24)',
+            transition: 'color 0.15s, text-shadow 0.15s, border-color 0.15s',
+          }}
+        >
+          {name.toLowerCase()}
+        </div>
+      </Html>
+
+      <StarParticles active={isHovered} color={color} size={visualSize} />
     </group>
   );
 }

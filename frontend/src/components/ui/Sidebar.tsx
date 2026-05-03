@@ -1,16 +1,22 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { Compass, Search, Globe, Settings, ChevronDown, ChevronUp } from 'lucide-react';
+import { Compass, Search, Globe, Settings, ChevronDown, ChevronUp, Plus, Orbit } from 'lucide-react';
 import { useUIStore } from '../../stores/uiStore';
 import { useStarStore } from '../../stores/starStore';
+import { useGalaxyStore } from '../../stores/galaxyStore';
+import StarCreateModal from './StarCreateModal';
+import GalaxyCreateModal from './GalaxyCreateModal';
 
 export default function Sidebar() {
   const { isSidebarOpen, closeSidebar } = useUIStore();
   const setCmdKOpen = useStarStore((s) => s.setCmdKOpen);
+  const galaxies = useGalaxyStore((s) => s.galaxies);
   const navigate = useNavigate();
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isUniversePublic, setIsUniversePublic] = useState(false);
+  const [showStarCreate, setShowStarCreate] = useState(false);
+  const [showGalaxyCreate, setShowGalaxyCreate] = useState(false);
 
   const handleNavigate = (path: string) => {
     navigate(path);
@@ -19,7 +25,7 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* 백드롭 — 클릭 시 닫힘 */}
+      {/* 백드롭 */}
       {isSidebarOpen && (
         <div
           className="fixed inset-0 z-30 bg-black/30 backdrop-blur-[2px]"
@@ -38,9 +44,51 @@ export default function Sidebar() {
           boxShadow: '8px 0 32px rgba(0,0,0,0.5)',
         }}
       >
-        <nav className="flex-1 px-3 py-4 flex flex-col gap-1">
+        <nav className="flex-1 px-3 py-4 flex flex-col gap-1 overflow-y-auto custom-scrollbar">
 
-          {/* Explore */}
+          {/* ── 내 우주 섹션 ── */}
+          <div className="mb-1">
+            <p className="text-[10px] font-mono text-white/25 tracking-[0.2em] uppercase px-3 mb-2">내 우주</p>
+
+            <button
+              onClick={() => { setShowStarCreate(true); }}
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/65 hover:text-white/90 hover:bg-white/[0.06] transition-colors text-sm font-mono w-full text-left"
+            >
+              <Plus size={15} className="shrink-0 text-[#A8D8FF]/70" />
+              <span>새 지식 추가</span>
+            </button>
+
+            <button
+              onClick={() => { setShowGalaxyCreate(true); }}
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/65 hover:text-white/90 hover:bg-white/[0.06] transition-colors text-sm font-mono w-full text-left"
+            >
+              <Orbit size={15} className="shrink-0 text-white/35" />
+              <span>새 은하 만들기</span>
+            </button>
+
+            {/* 은하 목록 */}
+            {galaxies.length > 0 && (
+              <div className="mt-1 ml-3 flex flex-col gap-0.5">
+                {galaxies.map((galaxy) => (
+                  <button
+                    key={galaxy.id}
+                    onClick={() => handleNavigate(`/galaxy/${galaxy.id}`)}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-md text-white/45 hover:text-white/75 hover:bg-white/[0.04] transition-colors text-xs font-mono w-full text-left"
+                  >
+                    <span
+                      className="w-1.5 h-1.5 rounded-full shrink-0"
+                      style={{ backgroundColor: galaxy.color }}
+                    />
+                    <span className="truncate">{galaxy.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="my-1 border-t border-white/[0.05]" />
+
+          {/* ── 탐색 섹션 ── */}
           <button
             onClick={() => handleNavigate('/explore')}
             className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/65 hover:text-white/90 hover:bg-white/[0.06] transition-colors text-sm font-mono w-full text-left"
@@ -49,7 +97,6 @@ export default function Sidebar() {
             <span>Explore</span>
           </button>
 
-          {/* 지식 검색 */}
           <button
             onClick={() => { setCmdKOpen(true); closeSidebar(); }}
             className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/65 hover:text-white/90 hover:bg-white/[0.06] transition-colors text-sm font-mono w-full text-left"
@@ -61,7 +108,6 @@ export default function Sidebar() {
             </div>
           </button>
 
-          {/* 우주 탐색 */}
           <button
             onClick={() => handleNavigate('/explore')}
             className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/65 hover:text-white/90 hover:bg-white/[0.06] transition-colors text-sm font-mono w-full text-left"
@@ -73,9 +119,9 @@ export default function Sidebar() {
             </div>
           </button>
 
-          <div className="my-2 border-t border-white/[0.05]" />
+          <div className="my-1 border-t border-white/[0.05]" />
 
-          {/* 설정 */}
+          {/* ── 설정 ── */}
           <button
             onClick={() => setIsSettingsOpen((v) => !v)}
             className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/65 hover:text-white/90 hover:bg-white/[0.06] transition-colors text-sm font-mono w-full text-left"
@@ -83,17 +129,16 @@ export default function Sidebar() {
             <Settings size={16} className="shrink-0 text-white/45" />
             <div className="flex items-center justify-between w-full">
               <span>설정</span>
-              {isSettingsOpen ? <ChevronUp size={14} className="text-white/30" /> : <ChevronDown size={14} className="text-white/30" />}
+              {isSettingsOpen
+                ? <ChevronUp size={14} className="text-white/30" />
+                : <ChevronDown size={14} className="text-white/30" />}
             </div>
           </button>
 
-          {/* 설정 서브패널 */}
           {isSettingsOpen && (
             <div className="mx-3 mb-1 px-3 py-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
               <p className="text-[10px] font-mono text-white/35 tracking-[0.2em] uppercase mb-3">내 우주 공개 범위</p>
-
               <div className="flex flex-col gap-2">
-                {/* 비공개 */}
                 <button
                   onClick={() => setIsUniversePublic(false)}
                   className={`flex items-start gap-2.5 px-2.5 py-2 rounded-md transition-colors text-left ${
@@ -110,8 +155,6 @@ export default function Sidebar() {
                     <p className="text-[10px] font-mono text-white/35 mt-0.5">나만 볼 수 있음</p>
                   </div>
                 </button>
-
-                {/* 공개 */}
                 <button
                   onClick={() => setIsUniversePublic(true)}
                   className={`flex items-start gap-2.5 px-2.5 py-2 rounded-md transition-colors text-left ${
@@ -137,6 +180,14 @@ export default function Sidebar() {
           ✦ project astrophage
         </div>
       </aside>
+
+      {/* 모달들 — 사이드바 외부에 렌더링 */}
+      {showStarCreate && (
+        <StarCreateModal onClose={() => setShowStarCreate(false)} />
+      )}
+      {showGalaxyCreate && (
+        <GalaxyCreateModal onClose={() => setShowGalaxyCreate(false)} />
+      )}
     </>
   );
 }

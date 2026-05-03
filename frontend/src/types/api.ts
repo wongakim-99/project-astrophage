@@ -29,6 +29,18 @@ export interface StarResponse {
   updated_at: string;
 }
 
+export interface StarPublicResponse {
+  id: string;
+  username: string;
+  galaxy_id: string;
+  title: string;
+  slug: string;
+  content: string;
+  lifecycle_state: LifecycleState;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface TokenResponse {
   access_token: string;
   token_type: string;
@@ -38,6 +50,7 @@ export interface UserResponse {
   id: string;
   username: string;
   email: string;
+  is_universe_public: boolean;
 }
 
 // lifecycle 상태 → 3D 시각 스타일 매핑

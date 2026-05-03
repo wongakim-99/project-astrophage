@@ -48,7 +48,12 @@ class StarRepository:
         result = await self._session.execute(
             select(Star)
             .join(User, Star.user_id == User.id)
-            .where(User.username == username, Star.slug == slug, Star.is_public == True)  # noqa: E712
+            .where(
+                User.username == username,
+                User.is_universe_public == True,  # noqa: E712
+                Star.slug == slug,
+                Star.is_public == True,  # noqa: E712
+            )
         )
         return result.scalar_one_or_none()
 
@@ -85,7 +90,7 @@ class StarRepository:
         result = await self._session.execute(
             select(Star, User.username)
             .join(User, Star.user_id == User.id)
-            .where(Star.is_public == True)  # noqa: E712
+            .where(Star.is_public == True, User.is_universe_public == True)  # noqa: E712
             .order_by(Star.updated_at.desc())
             .limit(limit)
             .offset(offset)

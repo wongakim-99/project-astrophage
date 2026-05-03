@@ -2,6 +2,7 @@ import { X, ExternalLink } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Link } from 'react-router';
+import { useAuthStore } from '../../stores/authStore';
 import { useStarStore } from '../../stores/starStore';
 import type { StarResponse } from '../../types/api';
 import { LIFECYCLE_STYLE } from '../../types/api';
@@ -13,6 +14,7 @@ interface StarPanelProps {
 
 export default function StarPanel({ star, galaxyColor }: StarPanelProps) {
   const { isPanelOpen, setPanelOpen, selectStar } = useStarStore();
+  const user = useAuthStore((s) => s.user);
 
   const handleClose = () => {
     setPanelOpen(false);
@@ -20,6 +22,9 @@ export default function StarPanel({ star, galaxyColor }: StarPanelProps) {
   };
 
   const style = star ? LIFECYCLE_STYLE[star.lifecycle_state] : null;
+  const publicUrl = star && user && star.is_public && user.is_universe_public
+    ? `/${user.username}/stars/${star.slug}`
+    : null;
 
   return (
     <div
@@ -42,12 +47,14 @@ export default function StarPanel({ star, galaxyColor }: StarPanelProps) {
               <p className="text-[11px] font-mono text-white/50 mt-1 tracking-wider">{star.slug}</p>
             </div>
             <div className="flex items-center gap-0.5 shrink-0">
-              <Link
-                to={`/user/stars/${star.slug}`}
-                className="p-1.5 hover:bg-white/[0.08] rounded transition-colors text-white/40 hover:text-white/70"
-              >
-                <ExternalLink size={14} />
-              </Link>
+              {publicUrl && (
+                <Link
+                  to={publicUrl}
+                  className="p-1.5 hover:bg-white/[0.08] rounded transition-colors text-white/40 hover:text-white/70"
+                >
+                  <ExternalLink size={14} />
+                </Link>
+              )}
               <button
                 onClick={handleClose}
                 className="p-1.5 hover:bg-white/[0.08] rounded transition-colors text-white/40 hover:text-white/70"

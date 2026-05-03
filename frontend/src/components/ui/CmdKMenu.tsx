@@ -2,9 +2,11 @@ import { useEffect } from 'react';
 import { Command } from 'cmdk';
 import { useNavigate } from 'react-router';
 import { useStarStore } from '../../stores/starStore';
+import { useAuthStore } from '../../stores/authStore';
 
 export default function CmdKMenu() {
   const { isCmdKOpen, setCmdKOpen } = useStarStore();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -37,10 +39,20 @@ export default function CmdKMenu() {
             <Command.Group heading="검색">
               <Command.Item
                 value="explore"
-                onSelect={() => { setCmdKOpen(false); navigate('/explore'); }}
+                onSelect={() => {
+                  setCmdKOpen(false);
+                  navigate(isAuthenticated ? '/explore' : '/auth/login');
+                }}
                 className="flex items-center px-4 py-3 rounded-lg cursor-pointer aria-selected:bg-white/10 text-white/80 aria-selected:text-white transition-colors"
               >
-                <span>Explore 공개 우주</span>
+                <span>Explore 내 지식 탐색</span>
+              </Command.Item>
+              <Command.Item
+                value="universes"
+                onSelect={() => { setCmdKOpen(false); navigate('/universes'); }}
+                className="flex items-center px-4 py-3 rounded-lg cursor-pointer aria-selected:bg-white/10 text-white/80 aria-selected:text-white transition-colors"
+              >
+                <span>우주 탐색 공개 지식</span>
               </Command.Item>
             </Command.Group>
           </Command.List>

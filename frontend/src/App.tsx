@@ -6,6 +6,7 @@ import StarPage from './pages/StarPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ExplorePage from './pages/ExplorePage';
+import PublicUniversePage from './pages/PublicUniversePage';
 import Navbar from './components/ui/Navbar';
 import Sidebar from './components/ui/Sidebar';
 import CmdKMenu from './components/ui/CmdKMenu';
@@ -32,6 +33,7 @@ function App() {
           <Route path="/galaxy/:id" element={<GalaxyPage />} />
           <Route path="/:username/stars/:slug" element={<StarPage />} />
           <Route path="/explore" element={<ExplorePage />} />
+          <Route path="/universes" element={<PublicUniversePage />} />
         </Routes>
       </main>
     </>

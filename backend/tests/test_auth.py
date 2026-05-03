@@ -65,6 +65,18 @@ async def test_login_wrong_password(client: AsyncClient) -> None:
     assert response.status_code == 401
 
 
+async def test_update_universe_visibility(auth_client) -> None:  # type: ignore[no-untyped-def]
+    client, _ = auth_client
+
+    me_response = await client.get("/auth/me")
+    assert me_response.status_code == 200
+    assert me_response.json()["is_universe_public"] is False
+
+    update_response = await client.patch("/auth/me/settings", json={"is_universe_public": True})
+    assert update_response.status_code == 200
+    assert update_response.json()["is_universe_public"] is True
+
+
 async def test_logout(client: AsyncClient) -> None:
     response = await client.post("/auth/logout")
     assert response.status_code == 200

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router';
 import { Compass, Search, Globe, Settings, ChevronDown, ChevronUp, Plus, Orbit } from 'lucide-react';
 import { useUIStore } from '../../stores/uiStore';
 import { useStarStore } from '../../stores/starStore';
+import { useAuthStore } from '../../stores/authStore';
 import { useGalaxies } from '../../hooks/useGalaxies';
 import StarCreateModal from './StarCreateModal';
 import GalaxyCreateModal from './GalaxyCreateModal';
@@ -10,17 +11,42 @@ import GalaxyCreateModal from './GalaxyCreateModal';
 export default function Sidebar() {
   const { isSidebarOpen, closeSidebar } = useUIStore();
   const setCmdKOpen = useStarStore((s) => s.setCmdKOpen);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const user = useAuthStore((s) => s.user);
+  const setUniversePublic = useAuthStore((s) => s.setUniversePublic);
   const { data: galaxies = [] } = useGalaxies();
   const navigate = useNavigate();
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isUniversePublic, setIsUniversePublic] = useState(false);
   const [showStarCreate, setShowStarCreate] = useState(false);
   const [showGalaxyCreate, setShowGalaxyCreate] = useState(false);
+  const [settingsError, setSettingsError] = useState('');
+  const isUniversePublic = user?.is_universe_public ?? false;
 
   const handleNavigate = (path: string) => {
     navigate(path);
     closeSidebar();
+  };
+
+  const requireAuth = () => {
+    if (isAuthenticated) return true;
+    navigate('/auth/login');
+    closeSidebar();
+    return false;
+  };
+
+  const handlePrivateNavigate = (path: string) => {
+    if (!requireAuth()) return;
+    handleNavigate(path);
+  };
+
+  const handleUniverseVisibility = async (isPublic: boolean) => {
+    setSettingsError('');
+    try {
+      await setUniversePublic(isPublic);
+    } catch {
+      setSettingsError('설정 저장에 실패했습니다.');
+    }
   };
 
   return (
@@ -51,7 +77,10 @@ export default function Sidebar() {
             <p className="text-[10px] font-mono text-white/25 tracking-[0.2em] uppercase px-3 mb-2">내 우주</p>
 
             <button
-              onClick={() => { setShowStarCreate(true); }}
+              onClick={() => {
+                if (!requireAuth()) return;
+                setShowStarCreate(true);
+              }}
               className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/65 hover:text-white/90 hover:bg-white/[0.06] transition-colors text-sm font-mono w-full text-left"
             >
               <Plus size={15} className="shrink-0 text-[#A8D8FF]/70" />
@@ -59,7 +88,10 @@ export default function Sidebar() {
             </button>
 
             <button
-              onClick={() => { setShowGalaxyCreate(true); }}
+              onClick={() => {
+                if (!requireAuth()) return;
+                setShowGalaxyCreate(true);
+              }}
               className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/65 hover:text-white/90 hover:bg-white/[0.06] transition-colors text-sm font-mono w-full text-left"
             >
               <Orbit size={15} className="shrink-0 text-white/35" />
@@ -90,7 +122,7 @@ export default function Sidebar() {
 
           {/* ── 탐색 섹션 ── */}
           <button
-            onClick={() => handleNavigate('/explore')}
+            onClick={() => handlePrivateNavigate('/explore')}
             className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/65 hover:text-white/90 hover:bg-white/[0.06] transition-colors text-sm font-mono w-full text-left"
           >
             <Compass size={16} className="shrink-0 text-white/45" />
@@ -98,7 +130,11 @@ export default function Sidebar() {
           </button>
 
           <button
-            onClick={() => { setCmdKOpen(true); closeSidebar(); }}
+            onClick={() => {
+              if (!requireAuth()) return;
+              setCmdKOpen(true);
+              closeSidebar();
+            }}
             className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/65 hover:text-white/90 hover:bg-white/[0.06] transition-colors text-sm font-mono w-full text-left"
           >
             <Search size={16} className="shrink-0 text-white/45" />
@@ -109,7 +145,7 @@ export default function Sidebar() {
           </button>
 
           <button
-            onClick={() => handleNavigate('/explore')}
+            onClick={() => handleNavigate('/universes')}
             className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/65 hover:text-white/90 hover:bg-white/[0.06] transition-colors text-sm font-mono w-full text-left"
           >
             <Globe size={16} className="shrink-0 text-white/45" />
@@ -123,7 +159,10 @@ export default function Sidebar() {
 
           {/* ── 설정 ── */}
           <button
-            onClick={() => setIsSettingsOpen((v) => !v)}
+            onClick={() => {
+              if (!requireAuth()) return;
+              setIsSettingsOpen((v) => !v);
+            }}
             className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/65 hover:text-white/90 hover:bg-white/[0.06] transition-colors text-sm font-mono w-full text-left"
           >
             <Settings size={16} className="shrink-0 text-white/45" />
@@ -140,7 +179,7 @@ export default function Sidebar() {
               <p className="text-[10px] font-mono text-white/35 tracking-[0.2em] uppercase mb-3">내 우주 공개 범위</p>
               <div className="flex flex-col gap-2">
                 <button
-                  onClick={() => setIsUniversePublic(false)}
+                  onClick={() => { void handleUniverseVisibility(false); }}
                   className={`flex items-start gap-2.5 px-2.5 py-2 rounded-md transition-colors text-left ${
                     !isUniversePublic ? 'bg-white/[0.06] border border-white/[0.1]' : 'hover:bg-white/[0.03]'
                   }`}
@@ -156,7 +195,7 @@ export default function Sidebar() {
                   </div>
                 </button>
                 <button
-                  onClick={() => setIsUniversePublic(true)}
+                  onClick={() => { void handleUniverseVisibility(true); }}
                   className={`flex items-start gap-2.5 px-2.5 py-2 rounded-md transition-colors text-left ${
                     isUniversePublic ? 'bg-brand-active/10 border border-brand-active/25' : 'hover:bg-white/[0.03]'
                   }`}
@@ -168,10 +207,13 @@ export default function Sidebar() {
                   </span>
                   <div>
                     <p className={`text-xs font-mono ${isUniversePublic ? 'text-brand-active' : 'text-white/75'}`}>공개</p>
-                    <p className="text-[10px] font-mono text-white/35 mt-0.5">explore에 내 항성 노출</p>
+                    <p className="text-[10px] font-mono text-white/35 mt-0.5">우주 탐색에 공개 항성 노출</p>
                   </div>
                 </button>
               </div>
+              {settingsError && (
+                <p className="mt-3 text-[10px] font-mono text-red-400/80">{settingsError}</p>
+              )}
             </div>
           )}
         </nav>
@@ -182,10 +224,10 @@ export default function Sidebar() {
       </aside>
 
       {/* 모달들 — 사이드바 외부에 렌더링 */}
-      {showStarCreate && (
+      {isAuthenticated && showStarCreate && (
         <StarCreateModal onClose={() => setShowStarCreate(false)} />
       )}
-      {showGalaxyCreate && (
+      {isAuthenticated && showGalaxyCreate && (
         <GalaxyCreateModal onClose={() => setShowGalaxyCreate(false)} />
       )}
     </>

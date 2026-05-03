@@ -49,7 +49,12 @@ class AuthService:
         tokens = TokenResponse(
             access_token=create_access_token(str(user.id)),
         )
-        user_response = UserResponse(id=str(user.id), username=user.username, email=user.email)
+        user_response = UserResponse(
+            id=str(user.id),
+            username=user.username,
+            email=user.email,
+            is_universe_public=user.is_universe_public,
+        )
         return user_response, tokens
 
     async def login(self, email: str, password: str) -> tuple[UserResponse, TokenResponse, str]:
@@ -68,7 +73,12 @@ class AuthService:
         refresh_token = create_refresh_token(str(user.id))
 
         tokens = TokenResponse(access_token=access_token)
-        user_response = UserResponse(id=str(user.id), username=user.username, email=user.email)
+        user_response = UserResponse(
+            id=str(user.id),
+            username=user.username,
+            email=user.email,
+            is_universe_public=user.is_universe_public,
+        )
         return user_response, tokens, refresh_token
 
     async def refresh(self, user_id: str) -> TokenResponse:

@@ -25,3 +25,8 @@ class UserResponse(BaseModel):
     id: str
     username: str
     email: str
+    is_universe_public: bool
+
+
+class UserSettingsUpdate(BaseModel):
+    is_universe_public: bool

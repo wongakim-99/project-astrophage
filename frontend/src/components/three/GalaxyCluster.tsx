@@ -83,7 +83,7 @@ export default function GalaxyCluster({ position, color, name, onClick }: Galaxy
 
   // 아주 느린 자전 — 실제 은하 자전 느낌
   useFrame((_, delta) => {
-    if (discRef.current) discRef.current.rotation.z += delta * 0.007;
+    if (discRef.current) discRef.current.rotation.z += delta * 0.02;
   });
 
   return (

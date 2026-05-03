@@ -1,41 +1,22 @@
-import { useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router';
 import { Canvas } from '@react-three/fiber';
-import { MapControls, Stars } from '@react-three/drei';
+import { Stars } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
-import { useEffect } from 'react';
 import { ArrowLeft } from 'lucide-react';
+import BoundedMapControls from '../components/three/BoundedMapControls';
 import StarMesh from '../components/three/StarMesh';
 import StarPanel from '../components/ui/StarPanel';
 import { useStarStore } from '../stores/starStore';
 import { useGalaxyStore } from '../stores/galaxyStore';
 
-// 별들이 ±8 범위에 분포하므로 25 정도면 충분히 탐색하면서 이탈을 막는다.
-// useEffect 대신 콜백 ref를 써야 controls 마운트 즉시 설정이 보장된다.
-function CameraControls() {
-  const refCallback = useCallback((controls: any) => {
-    if (controls) {
-      controls.maxTargetRadius = 25;
-    }
-  }, []);
-
-  return (
-    <MapControls
-      ref={refCallback}
-      makeDefault
-      enableRotate={false}
-      enableDamping
-      dampingFactor={0.04}
-      zoomSpeed={0.6}
-      maxDistance={130}
-      minDistance={3}
-    />
-  );
-}
-
 export default function GalaxyPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [navigationState, setNavigationState] = useState({
+    vignetteIntensity: 0,
+    showRecenterCue: false,
+  });
 
   const galaxies = useGalaxyStore((state) => state.galaxies);
   const galaxy = galaxies.find(g => g.id === id);
@@ -49,21 +30,23 @@ export default function GalaxyPage() {
     return () => selectStar(null);
   }, [selectStar]);
 
+  const vignetteEdge = 0.48 + navigationState.vignetteIntensity * 0.28;
+
   return (
     <div className="w-full h-full relative overflow-hidden">
-      <div className="absolute top-4 left-4 z-10 text-white flex flex-col gap-2">
+      <div className="absolute top-4 left-4 z-20 flex flex-col gap-2">
         <button
           onClick={() => navigate('/universe')}
-          className="flex items-center gap-2 text-sm text-foreground/70 hover:text-white transition-colors bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-full backdrop-blur-md w-fit border border-white/10"
+          className="flex items-center gap-1.5 text-[11px] font-mono text-white/30 hover:text-white/60 transition-colors bg-white/[0.03] hover:bg-white/[0.06] px-3 py-1.5 rounded border border-white/[0.06] hover:border-white/[0.12] w-fit"
         >
-          <ArrowLeft size={16} />
-          <span>Back to Universe</span>
+          <ArrowLeft size={12} />
+          <span>universe</span>
         </button>
-        <div className="pointer-events-none mt-2">
-          <h1 className="text-3xl font-bold tracking-widest drop-shadow-lg" style={{ color: galaxy?.color || '#fff' }}>
-            {galaxy?.name || 'UNKNOWN GALAXY'}
+        <div className="pointer-events-none mt-1">
+          <h1 className="text-lg font-mono font-medium tracking-wider" style={{ color: galaxy?.color || '#fff' }}>
+            {galaxy?.name || 'unknown galaxy'}
           </h1>
-          <p className="text-sm opacity-70">{galaxyStars.length} stars discovered</p>
+          <p className="text-[11px] font-mono text-white/25 mt-0.5">{galaxyStars.length} stars</p>
         </div>
       </div>
 
@@ -83,7 +66,11 @@ export default function GalaxyPage() {
           />
         ))}
 
-        <CameraControls />
+        <BoundedMapControls
+          minDistance={8}
+          maxDistance={130}
+          onNavigationStateChange={setNavigationState}
+        />
 
         <EffectComposer>
           <Bloom
@@ -94,6 +81,22 @@ export default function GalaxyPage() {
           />
         </EffectComposer>
       </Canvas>
+
+      <div
+        className="pointer-events-none absolute inset-0 z-10 transition-opacity duration-150"
+        style={{
+          opacity: navigationState.vignetteIntensity,
+          background: `radial-gradient(circle at center, rgba(0,0,0,0) 38%, rgba(0,0,0,0.22) 68%, rgba(0,0,0,${vignetteEdge}) 100%)`,
+        }}
+      />
+
+      <div
+        className={`pointer-events-none absolute bottom-6 left-1/2 z-20 -translate-x-1/2 rounded border border-white/[0.08] bg-black/25 px-3 py-1.5 font-mono text-[10px] tracking-[0.24em] text-white/35 backdrop-blur-sm transition-all duration-200 ${
+          navigationState.showRecenterCue ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0'
+        }`}
+      >
+        [ SPACE : RECENTER ]
+      </div>
 
       <StarPanel />
     </div>

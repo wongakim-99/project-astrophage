@@ -1,42 +1,26 @@
-import { useCallback } from 'react';
+import { useState } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { MapControls, Stars } from '@react-three/drei';
+import { Stars } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import { useNavigate } from 'react-router';
+import BoundedMapControls from '../components/three/BoundedMapControls';
 import GalaxyCluster from '../components/three/GalaxyCluster';
 import { useGalaxyStore } from '../stores/galaxyStore';
-
-// 은하들이 원점 기준 최대 ±35 범위. 45면 모든 은하를 탐색하면서 이탈을 막는다.
-function CameraControls() {
-  const refCallback = useCallback((controls: any) => {
-    if (controls) {
-      controls.maxTargetRadius = 45;
-    }
-  }, []);
-
-  return (
-    <MapControls
-      ref={refCallback}
-      makeDefault
-      enableRotate={false}
-      enableDamping
-      dampingFactor={0.04}
-      zoomSpeed={0.6}
-      maxDistance={260}
-      minDistance={15}
-    />
-  );
-}
 
 export default function UniversePage() {
   const galaxies = useGalaxyStore((state) => state.galaxies);
   const navigate = useNavigate();
+  const [navigationState, setNavigationState] = useState({
+    vignetteIntensity: 0,
+    showRecenterCue: false,
+  });
+
+  const vignetteEdge = 0.48 + navigationState.vignetteIntensity * 0.28;
 
   return (
     <div className="w-full h-full relative">
-      <div className="absolute top-4 left-4 z-10 text-white pointer-events-none">
-        <h1 className="text-2xl font-bold tracking-widest text-brand-active drop-shadow-[0_0_10px_rgba(168,216,255,0.5)]">UNIVERSE VIEW</h1>
-        <p className="text-sm opacity-70">모든 지식의 은하단</p>
+      <div className="absolute top-4 left-4 z-20 pointer-events-none">
+        <p className="text-[11px] font-mono text-white/20 tracking-[0.25em] uppercase">universe</p>
       </div>
 
       <Canvas camera={{ position: [0, 0, 80], fov: 60 }}>
@@ -54,7 +38,11 @@ export default function UniversePage() {
           />
         ))}
 
-        <CameraControls />
+        <BoundedMapControls
+          minDistance={18}
+          maxDistance={260}
+          onNavigationStateChange={setNavigationState}
+        />
 
         <EffectComposer>
           <Bloom
@@ -65,6 +53,22 @@ export default function UniversePage() {
           />
         </EffectComposer>
       </Canvas>
+
+      <div
+        className="pointer-events-none absolute inset-0 z-10 transition-opacity duration-150"
+        style={{
+          opacity: navigationState.vignetteIntensity,
+          background: `radial-gradient(circle at center, rgba(0,0,0,0) 38%, rgba(0,0,0,0.22) 68%, rgba(0,0,0,${vignetteEdge}) 100%)`,
+        }}
+      />
+
+      <div
+        className={`pointer-events-none absolute bottom-6 left-1/2 z-20 -translate-x-1/2 rounded border border-white/[0.08] bg-black/25 px-3 py-1.5 font-mono text-[10px] tracking-[0.24em] text-white/35 backdrop-blur-sm transition-all duration-200 ${
+          navigationState.showRecenterCue ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0'
+        }`}
+      >
+        [ SPACE : RECENTER ]
+      </div>
     </div>
   );
 }

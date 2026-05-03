@@ -7,8 +7,6 @@ import {
   WHITE_CORE,
   starVertexShader,
   starFragmentShader,
-  coronaVertexShader,
-  coronaFragmentShader,
 } from './starShaders';
 
 const PARTICLE_COUNT = 14;
@@ -100,7 +98,6 @@ export default function StarMesh({ position, color, size, name, onClick }: StarM
   const meshRef = useRef<THREE.Mesh>(null);
   const leaderRef = useRef<THREE.Line>(null);
   const surfaceMatRef = useRef<THREE.ShaderMaterial>(null);
-  const coronaMatRef = useRef<THREE.ShaderMaterial>(null);
   const [isHovered, setIsHovered] = useState(false);
   const flickerRef = useRef({ intensity: 0, t: 0 });
   const visualSize = size * STAR_SCALE;
@@ -132,13 +129,6 @@ export default function StarMesh({ position, color, size, name, onClick }: StarM
     uCoreColor: { value: WHITE_CORE },
     uScatterColor: { value: PURPLE_SCATTER },
   }), [baseColor]);
-  const coronaUniforms = useMemo(() => ({
-    uTime: { value: 0 },
-    uHoverIntensity: { value: 0 },
-    uBaseColor: { value: baseColor },
-    uScatterColor: { value: PURPLE_SCATTER },
-  }), [baseColor]);
-
   useEffect(() => {
     return () => {
       leaderLine.geometry.dispose();
@@ -164,11 +154,6 @@ export default function StarMesh({ position, color, size, name, onClick }: StarM
     if (surfaceMatRef.current) {
       surfaceMatRef.current.uniforms.uTime.value = f.t;
       surfaceMatRef.current.uniforms.uHoverIntensity.value = f.intensity;
-    }
-
-    if (coronaMatRef.current) {
-      coronaMatRef.current.uniforms.uTime.value = f.t;
-      coronaMatRef.current.uniforms.uHoverIntensity.value = f.intensity;
     }
 
     if (leaderRef.current) {
@@ -204,41 +189,27 @@ export default function StarMesh({ position, color, size, name, onClick }: StarM
         />
       </mesh>
 
-      <mesh scale={1.9}>
-        <sphereGeometry args={[visualSize, 48, 48]} />
-        <shaderMaterial
-          ref={coronaMatRef}
-          uniforms={coronaUniforms}
-          vertexShader={coronaVertexShader}
-          fragmentShader={coronaFragmentShader}
-          transparent
-          depthWrite={false}
-          blending={THREE.AdditiveBlending}
-          side={THREE.BackSide}
-        />
-      </mesh>
-
-      <primitive ref={leaderRef} object={leaderLine} />
+<primitive ref={leaderRef} object={leaderLine} />
 
       <Html distanceFactor={15} center position={labelPosition}>
         <div
           className="pointer-events-none select-none whitespace-nowrap"
           style={{
-            fontSize: '8px',
-            fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
-            color: isHovered ? 'rgba(235, 235, 255, 0.92)' : 'rgba(210, 210, 230, 0.58)',
+            fontSize: '10px',
+            fontFamily: "'IBM Plex Mono', 'Noto Sans KR', ui-monospace, monospace",
+            color: isHovered ? 'rgba(235, 235, 255, 0.96)' : 'rgba(220, 220, 245, 0.82)',
             textShadow: isHovered
-              ? `0 0 10px ${color}, 0 1px 4px rgba(0,0,0,1)`
-              : '0 1px 4px rgba(0,0,0,1)',
-            letterSpacing: '0.16em',
+              ? `0 0 12px ${color}, 0 0 4px ${color}88, 0 1px 6px rgba(0,0,0,1)`
+              : '0 1px 6px rgba(0,0,0,0.9), 0 0 3px rgba(0,0,0,0.8)',
+            letterSpacing: '0.12em',
             lineHeight: 1,
-            padding: '3px 5px',
-            borderLeft: `1px solid ${isHovered ? color : 'rgba(220,220,245,0.24)'}`,
-            background: 'rgba(5, 5, 16, 0.24)',
-            transition: 'color 0.15s, text-shadow 0.15s, border-color 0.15s',
+            padding: '3px 6px',
+            borderLeft: `1px solid ${isHovered ? color : 'rgba(220,220,245,0.35)'}`,
+            background: isHovered ? 'rgba(5, 5, 16, 0.72)' : 'rgba(5, 5, 16, 0.55)',
+            transition: 'color 0.15s, text-shadow 0.15s, border-color 0.15s, background 0.15s',
           }}
         >
-          {name.toLowerCase()}
+          {name}
         </div>
       </Html>
 

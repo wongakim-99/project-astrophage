@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;1,300&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;1,300&family=Noto+Sans+KR:wght@300;400;500&display=swap');
 @import 'tailwindcss';
 
 /* Project Astrophage Theme */
@@ -10,13 +10,13 @@
   --color-brand-lost: #1A1A2E;
   --color-background: #050510;
   --color-foreground: #c4c4d4;
-  --font-mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Code', Consolas, monospace;
+  --font-mono: 'IBM Plex Mono', 'Noto Sans KR', ui-monospace, 'Cascadia Code', Consolas, monospace;
 }
 
 body {
   background-color: var(--color-background);
   color: var(--color-foreground);
-  font-family: 'IBM Plex Mono', ui-monospace, Consolas, monospace;
+  font-family: 'IBM Plex Mono', 'Noto Sans KR', ui-monospace, Consolas, monospace;
   letter-spacing: 0.01em;
   margin: 0;
   padding: 0;

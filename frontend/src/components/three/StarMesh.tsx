@@ -191,7 +191,7 @@ export default function StarMesh({ position, color, size, name, onClick }: StarM
 
 <primitive ref={leaderRef} object={leaderLine} />
 
-      <Html distanceFactor={15} center position={labelPosition}>
+      <Html distanceFactor={15} center position={labelPosition} zIndexRange={[0, 0]}>
         <div
           className="pointer-events-none select-none whitespace-nowrap"
           style={{

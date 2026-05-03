@@ -122,7 +122,7 @@ export default function GalaxyCluster({ position, color, name, onClick }: Galaxy
       </mesh>
 
       {/* 은하 이름 */}
-      <Html distanceFactor={55} center position={[0, -10, 0]}>
+      <Html distanceFactor={55} center position={[0, -10, 0]} zIndexRange={[0, 0]}>
         <div
           className="text-xs font-mono tracking-widest pointer-events-none whitespace-nowrap"
           style={{ color, textShadow: `0 0 8px ${color}` }}

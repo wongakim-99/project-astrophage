@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router';
 import UniversePage from './pages/UniversePage';
 import GalaxyPage from './pages/GalaxyPage';
@@ -8,8 +9,15 @@ import ExplorePage from './pages/ExplorePage';
 import Navbar from './components/ui/Navbar';
 import Sidebar from './components/ui/Sidebar';
 import CmdKMenu from './components/ui/CmdKMenu';
+import { useAuthStore } from './stores/authStore';
 
 function App() {
+  const init = useAuthStore((s) => s.init);
+
+  useEffect(() => {
+    init();
+  }, [init]);
+
   return (
     <>
       <Navbar />
@@ -20,10 +28,8 @@ function App() {
           <Route path="/" element={<Navigate to="/universe" replace />} />
           <Route path="/auth/login" element={<LoginPage />} />
           <Route path="/auth/register" element={<RegisterPage />} />
-          {/* TODO: Add ProtectedRoute wrapper for logged in users */}
           <Route path="/universe" element={<UniversePage />} />
           <Route path="/galaxy/:id" element={<GalaxyPage />} />
-          {/* Public Pages */}
           <Route path="/:username/stars/:slug" element={<StarPage />} />
           <Route path="/explore" element={<ExplorePage />} />
         </Routes>

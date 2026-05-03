@@ -3,14 +3,14 @@ import { useNavigate } from 'react-router';
 import { Compass, Search, Globe, Settings, ChevronDown, ChevronUp, Plus, Orbit } from 'lucide-react';
 import { useUIStore } from '../../stores/uiStore';
 import { useStarStore } from '../../stores/starStore';
-import { useGalaxyStore } from '../../stores/galaxyStore';
+import { useGalaxies } from '../../hooks/useGalaxies';
 import StarCreateModal from './StarCreateModal';
 import GalaxyCreateModal from './GalaxyCreateModal';
 
 export default function Sidebar() {
   const { isSidebarOpen, closeSidebar } = useUIStore();
   const setCmdKOpen = useStarStore((s) => s.setCmdKOpen);
-  const galaxies = useGalaxyStore((s) => s.galaxies);
+  const { data: galaxies = [] } = useGalaxies();
   const navigate = useNavigate();
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);

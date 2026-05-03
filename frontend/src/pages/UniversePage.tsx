@@ -5,10 +5,11 @@ import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import { useNavigate } from 'react-router';
 import BoundedMapControls from '../components/three/BoundedMapControls';
 import GalaxyCluster from '../components/three/GalaxyCluster';
-import { useGalaxyStore } from '../stores/galaxyStore';
+import { useGalaxies } from '../hooks/useGalaxies';
+import { galaxyPosition } from '../stores/galaxyStore';
 
 export default function UniversePage() {
-  const galaxies = useGalaxyStore((state) => state.galaxies);
+  const { data: galaxies = [], isLoading } = useGalaxies();
   const navigate = useNavigate();
   const [navigationState, setNavigationState] = useState({
     vignetteIntensity: 0,
@@ -21,6 +22,9 @@ export default function UniversePage() {
     <div className="w-full h-full relative">
       <div className="absolute top-4 left-4 z-20 pointer-events-none">
         <p className="text-[11px] font-mono text-white/20 tracking-[0.25em] uppercase">universe</p>
+        {isLoading && (
+          <p className="text-[10px] font-mono text-white/20 mt-1">loading...</p>
+        )}
       </div>
 
       <Canvas camera={{ position: [0, 0, 80], fov: 60 }}>
@@ -28,10 +32,10 @@ export default function UniversePage() {
         <ambientLight intensity={0.5} />
         <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
 
-        {galaxies.map((galaxy) => (
+        {galaxies.map((galaxy, index) => (
           <GalaxyCluster
             key={galaxy.id}
-            position={galaxy.position}
+            position={galaxyPosition(index, galaxies.length)}
             color={galaxy.color}
             name={galaxy.name}
             onClick={() => navigate(`/galaxy/${galaxy.id}`)}
@@ -45,12 +49,7 @@ export default function UniversePage() {
         />
 
         <EffectComposer>
-          <Bloom
-            luminanceThreshold={0.15}
-            luminanceSmoothing={0.9}
-            intensity={1.5}
-            mipmapBlur
-          />
+          <Bloom luminanceThreshold={0.15} luminanceSmoothing={0.9} intensity={1.5} mipmapBlur />
         </EffectComposer>
       </Canvas>
 

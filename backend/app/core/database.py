@@ -22,4 +22,9 @@ async_session_factory = async_sessionmaker(
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
     """요청마다 하나의 SQLAlchemy 세션을 제공하는 FastAPI 의존성."""
     async with async_session_factory() as session:
-        yield session
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise

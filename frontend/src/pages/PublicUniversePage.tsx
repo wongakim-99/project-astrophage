@@ -1,10 +1,12 @@
 import { useNavigate } from 'react-router';
-import { ArrowRight, Compass } from 'lucide-react';
+import { ArrowRight, Compass, LogIn, Sparkles } from 'lucide-react';
 import { usePublicStars } from '../hooks/useStars';
+import { useAuthStore } from '../stores/authStore';
 import { LIFECYCLE_STYLE } from '../types/api';
 
 export default function PublicUniversePage() {
   const { data: stars = [], isLoading, isError } = usePublicStars();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const navigate = useNavigate();
 
   return (
@@ -17,6 +19,24 @@ export default function PublicUniversePage() {
             공개로 열려 있는 다른 사용자의 지식 베이스를 둘러봅니다.
           </p>
         </header>
+
+        {!isAuthenticated && (
+          <div className="flex items-center justify-between gap-4 rounded-lg border border-[#A8D8FF]/20 bg-[#A8D8FF]/[0.05] px-5 py-4">
+            <div className="flex items-center gap-3 min-w-0">
+              <Sparkles size={15} className="shrink-0 text-[#A8D8FF]/70" />
+              <p className="text-sm text-white/60 truncate">
+                나만의 우주를 만들고, 지식을 항성으로 쌓아보세요.
+              </p>
+            </div>
+            <button
+              onClick={() => navigate('/auth/login')}
+              className="flex shrink-0 items-center gap-2 rounded-md border border-white/[0.14] px-3 py-1.5 text-xs font-mono text-white/70 transition-colors hover:border-white/[0.28] hover:text-white"
+            >
+              <LogIn size={13} />
+              로그인
+            </button>
+          </div>
+        )}
 
         {isLoading ? (
           <div className="py-20 text-center text-sm font-mono text-white/35">loading...</div>

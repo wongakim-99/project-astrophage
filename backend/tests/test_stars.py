@@ -101,7 +101,10 @@ async def test_visibility_toggle(auth_client: tuple[AsyncClient, User]) -> None:
     assert resp.status_code == 200
     assert resp.json()["is_public"] is True
 
-    # 공개 전환 후에는 공개 페이지로 접근할 수 있어야 한다.
+    # 항성과 우주가 모두 공개 상태일 때 공개 페이지로 접근할 수 있어야 한다.
+    settings_resp = await client.patch("/auth/me/settings", json={"is_universe_public": True})
+    assert settings_resp.status_code == 200
+
     pub_resp = await client.get(f"/{user.username}/stars/radix-sort")
     assert pub_resp.status_code == 200
     assert pub_resp.json()["title"] == "Merge Sort" or pub_resp.json()["title"] == "Radix Sort"

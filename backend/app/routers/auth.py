@@ -4,8 +4,15 @@ from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
+from app.core.dependencies import CurrentUser
 from app.core.security import decode_token
-from app.schemas.auth import LoginRequest, RegisterRequest, TokenResponse, UserResponse
+from app.schemas.auth import (
+    LoginRequest,
+    RegisterRequest,
+    TokenResponse,
+    UserResponse,
+    UserSettingsUpdate,
+)
 from app.schemas.common import MessageResponse
 from app.services.auth_service import AuthError, AuthService
 
@@ -114,6 +121,35 @@ async def logout(response: Response) -> MessageResponse:
     """
     response.delete_cookie(REFRESH_COOKIE)
     return MessageResponse(message="Logged out")
+
+
+@router.get("/me", response_model=UserResponse)
+async def get_me(current_user: CurrentUser) -> UserResponse:
+    """현재 로그인한 사용자의 공개 설정을 포함한 프로필을 반환한다."""
+    return UserResponse(
+        id=str(current_user.id),
+        username=current_user.username,
+        email=current_user.email,
+        is_universe_public=current_user.is_universe_public,
+    )
+
+
+@router.patch("/me/settings", response_model=UserResponse)
+async def update_me_settings(
+    body: UserSettingsUpdate,
+    current_user: CurrentUser,
+    session: Annotated[AsyncSession, Depends(get_session)],
+) -> UserResponse:
+    """우주 탐색 노출 여부를 사용자 단위로 저장한다."""
+    current_user.is_universe_public = body.is_universe_public
+    await session.commit()
+    await session.refresh(current_user)
+    return UserResponse(
+        id=str(current_user.id),
+        username=current_user.username,
+        email=current_user.email,
+        is_universe_public=current_user.is_universe_public,
+    )
 
 
 def _set_refresh_cookie(response: Response, token: str) -> None:

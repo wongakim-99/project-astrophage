@@ -1,47 +1,57 @@
-
 import { Link } from 'react-router';
-import { Search, Compass, LogIn } from 'lucide-react';
-import { useStarStore } from '../../stores/starStore';
+import { LogIn, LogOut, Menu } from 'lucide-react';
+import { useUIStore } from '../../stores/uiStore';
+import { useAuthStore } from '../../stores/authStore';
 
 export default function Navbar() {
-  const setCmdKOpen = useStarStore((state) => state.setCmdKOpen);
-
+  const toggleSidebar = useUIStore((s) => s.toggleSidebar);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const logout = useAuthStore((s) => s.logout);
 
   return (
-    <nav className="fixed top-0 left-0 w-full h-16 z-40 bg-[#050510]/90 backdrop-blur-xl border-b border-white/[0.04] flex items-center justify-between px-6">
-      <div className="flex items-center gap-5">
+    <nav className="fixed top-0 left-0 w-full h-16 z-40 bg-[#050510]/90 backdrop-blur-xl border-b border-white/[0.08] flex items-center justify-between px-5">
+      <div className="flex items-center gap-3">
+        <button
+          onClick={toggleSidebar}
+          className="p-2 rounded-lg text-white/55 hover:text-white/90 hover:bg-white/[0.06] transition-colors"
+          aria-label="메뉴 열기"
+        >
+          <Menu size={20} />
+        </button>
+
         <Link
           to="/universe"
-          className="text-sm font-mono font-medium tracking-[0.18em] text-white/60 hover:text-white/90 transition-colors"
+          className="text-lg font-mono font-bold tracking-[0.18em] text-white/85 hover:text-white transition-colors"
         >
           ASTROPHAGE
         </Link>
-        <button
-          onClick={() => setCmdKOpen(true)}
-          className="flex items-center gap-2 text-[11px] font-mono text-white/25 hover:text-white/55 transition-colors bg-white/[0.03] hover:bg-white/[0.05] px-3 py-1.5 rounded border border-white/[0.06] hover:border-white/[0.12]"
-        >
-          <Search size={13} />
-          <span>Search stars...</span>
-          <kbd className="ml-1 px-1.5 py-0.5 bg-white/[0.06] rounded text-[9px]">⌘K</kbd>
-        </button>
       </div>
 
-      <div className="flex items-center gap-3 text-[11px] font-mono">
-        <Link
-          to="/explore"
-          className="flex items-center gap-1.5 text-white/30 hover:text-white/60 transition-colors"
+      {isAuthenticated ? (
+        <button
+          onClick={() => { void logout(); }}
+          className="flex items-center gap-1.5 rounded border border-white/[0.15] bg-white/[0.07] px-3 py-1.5 text-sm font-mono text-white/75 transition-colors hover:border-white/[0.30] hover:bg-white/[0.12] hover:text-white"
         >
-          <Compass size={14} />
-          <span>explore</span>
-        </Link>
-        <Link
-          to="/auth/login"
-          className="flex items-center gap-1.5 text-white/35 hover:text-white/65 px-3 py-1.5 rounded border border-white/[0.08] hover:border-white/[0.18] transition-colors"
-        >
-          <LogIn size={13} />
-          <span>login</span>
-        </Link>
-      </div>
+          <LogOut size={14} />
+          <span>로그아웃</span>
+        </button>
+      ) : (
+        <div className="flex items-center gap-3 text-sm font-mono">
+          <Link
+            to="/auth/register"
+            className="text-white/55 hover:text-white/85 px-3 py-1.5 rounded border border-white/[0.12] hover:border-white/[0.25] transition-colors"
+          >
+            회원가입
+          </Link>
+          <Link
+            to="/auth/login"
+            className="flex items-center gap-1.5 bg-white/[0.07] hover:bg-white/[0.12] text-white/75 hover:text-white px-3 py-1.5 rounded border border-white/[0.15] hover:border-white/[0.30] transition-colors"
+          >
+            <LogIn size={14} />
+            <span>로그인</span>
+          </Link>
+        </div>
+      )}
     </nav>
   );
 }

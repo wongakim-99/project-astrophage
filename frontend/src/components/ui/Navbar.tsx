@@ -20,7 +20,7 @@ export default function Navbar() {
         </button>
 
         <Link
-          to="/universe"
+          to={isAuthenticated ? '/universe' : '/universes'}
           className="text-lg font-mono font-bold tracking-[0.18em] text-white/85 hover:text-white transition-colors"
         >
           ASTROPHAGE

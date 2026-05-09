@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { X, ExternalLink, Pencil, Check, RotateCcw } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import MDEditor from '@uiw/react-md-editor';
-import '@uiw/react-md-editor/dist/mdeditor.min.css';
+import TiptapEditor from './TiptapEditor';
 import { Link } from 'react-router';
 import { useAuthStore } from '../../stores/authStore';
 import { useStarStore } from '../../stores/starStore';
@@ -170,19 +169,13 @@ export default function StarPanel({ star, galaxyColor }: StarPanelProps) {
 
           {/* 본문 */}
           {isEditing ? (
-            <div className="flex-1 overflow-hidden" data-color-mode="dark">
-              <MDEditor
-                value={editContent}
-                onChange={(val) => setEditContent(val ?? '')}
-                preview="live"
-                visibleDragbar={false}
-                height="100%"
-                style={{
-                  height: '100%',
-                  borderRadius: 0,
-                  border: 'none',
-                  background: 'transparent',
-                }}
+            <div className="flex-1 overflow-y-auto px-5 py-4 custom-scrollbar">
+              <TiptapEditor
+                content={editContent}
+                onChange={setEditContent}
+                placeholder="내용을 입력하세요..."
+                autofocus
+                className="min-h-full"
               />
             </div>
           ) : (

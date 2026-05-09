@@ -80,3 +80,18 @@ export function useUpdateStar() {
     },
   });
 }
+
+interface DeleteStarParams {
+  id: string;
+  galaxy_id: string;
+}
+
+export function useDeleteStar() {
+  const queryClient = useQueryClient();
+  return useMutation<void, Error, DeleteStarParams>({
+    mutationFn: ({ id }) => api.delete(`/stars/${id}`).then((r) => r.data),
+    onSuccess: (_, { galaxy_id }) => {
+      queryClient.invalidateQueries({ queryKey: ['stars', galaxy_id] });
+    },
+  });
+}

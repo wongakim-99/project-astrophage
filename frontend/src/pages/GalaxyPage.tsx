@@ -13,6 +13,10 @@ import { useGalaxies } from '../hooks/useGalaxies';
 import { useGalaxyStars } from '../hooks/useStars';
 import { LIFECYCLE_STYLE } from '../types/api';
 
+// DB 좌표(UMAP/weighted-centroid 기반)는 수 단위 범위라 Canvas에서 바로 쓰면 항성이 겹침.
+// 시각적 배율을 곱해 스크린 단위로 변환한다. StarPanel의 좌표 표시에는 원본 값을 유지.
+const COORD_SCALE = 4;
+
 export default function GalaxyPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -75,7 +79,7 @@ export default function GalaxyPage() {
           return (
             <StarMesh
               key={star.id}
-              position={[star.pos_x, star.pos_y, 0]}
+              position={[star.pos_x * COORD_SCALE, star.pos_y * COORD_SCALE, 0]}
               color={style.color}
               size={style.size}
               name={star.title}

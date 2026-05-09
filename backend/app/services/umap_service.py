@@ -4,7 +4,7 @@ import numpy as np
 
 from app.models.star import Star
 
-_JITTER_SCALE = 0.5  # 새 항성에 적용할 좌표 단위 랜덤 오프셋
+_JITTER_SCALE = 2.5  # 새 항성에 적용할 좌표 단위 랜덤 오프셋
 
 
 def place_new_star(
@@ -30,7 +30,7 @@ def place_new_star(
 
     if len(existing_stars) == 1:
         sole = existing_stars[0]
-        return sole.pos_x + 1.0, sole.pos_y
+        return _jittered(sole.pos_x + 5.0, sole.pos_y)
 
     new_vec = np.array(new_embedding, dtype=np.float32)
     new_norm = np.linalg.norm(new_vec)

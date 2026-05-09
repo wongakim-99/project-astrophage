@@ -1,9 +1,13 @@
-import { X, ExternalLink } from 'lucide-react';
+import { useState } from 'react';
+import { X, ExternalLink, Pencil, Check, RotateCcw } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import MDEditor from '@uiw/react-md-editor';
+import '@uiw/react-md-editor/dist/mdeditor.min.css';
 import { Link } from 'react-router';
 import { useAuthStore } from '../../stores/authStore';
 import { useStarStore } from '../../stores/starStore';
+import { useUpdateStar } from '../../hooks/useStars';
 import type { StarResponse } from '../../types/api';
 import { LIFECYCLE_STYLE } from '../../types/api';
 
@@ -15,10 +19,32 @@ interface StarPanelProps {
 export default function StarPanel({ star, galaxyColor }: StarPanelProps) {
   const { isPanelOpen, setPanelOpen, selectStar } = useStarStore();
   const user = useAuthStore((s) => s.user);
+  const { mutateAsync: updateStar, isPending: isSaving } = useUpdateStar();
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editContent, setEditContent] = useState('');
 
   const handleClose = () => {
+    setIsEditing(false);
     setPanelOpen(false);
     setTimeout(() => selectStar(null), 300);
+  };
+
+  const handleStartEdit = () => {
+    setEditTitle(star?.title ?? '');
+    setEditContent(star?.content ?? '');
+    setIsEditing(true);
+  };
+
+  const handleCancel = () => {
+    setIsEditing(false);
+  };
+
+  const handleSave = async () => {
+    if (!star) return;
+    await updateStar({ id: String(star.id), title: editTitle, content: editContent });
+    setIsEditing(false);
   };
 
   const style = star ? LIFECYCLE_STYLE[star.lifecycle_state] : null;
@@ -28,8 +54,10 @@ export default function StarPanel({ star, galaxyColor }: StarPanelProps) {
 
   return (
     <div
-      className={`fixed top-16 right-0 w-80 h-[calc(100vh-4rem)] transition-transform duration-300 ease-in-out z-30 flex flex-col ${
-        isPanelOpen && star ? 'translate-x-0' : 'translate-x-full'
+      className={`fixed top-16 right-0 h-[calc(100vh-4rem)] transition-all duration-300 ease-in-out z-30 flex flex-col ${
+        isPanelOpen && star
+          ? `translate-x-0 ${isEditing ? 'w-[660px]' : 'w-80'}`
+          : `translate-x-full ${isEditing ? 'w-[660px]' : 'w-80'}`
       }`}
       style={{
         background: 'rgba(8, 8, 28, 0.97)',
@@ -39,74 +67,139 @@ export default function StarPanel({ star, galaxyColor }: StarPanelProps) {
     >
       {star && style && (
         <>
+          {/* 헤더 */}
           <div className="flex items-start justify-between px-5 pt-5 pb-4 border-b border-white/[0.08]">
             <div className="flex-1 min-w-0 pr-3">
-              <h2 className="text-sm font-mono font-medium leading-tight" style={{ color: style.color }}>
-                {star.title}
-              </h2>
+              {isEditing ? (
+                <input
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  className="w-full bg-transparent text-sm font-mono font-medium border-b border-white/20 pb-1 focus:outline-none focus:border-[#A8D8FF]/60 transition-colors"
+                  style={{ color: style.color }}
+                />
+              ) : (
+                <h2 className="text-sm font-mono font-medium leading-tight" style={{ color: style.color }}>
+                  {star.title}
+                </h2>
+              )}
               <p className="text-[11px] font-mono text-white/50 mt-1 tracking-wider">{star.slug}</p>
             </div>
+
             <div className="flex items-center gap-0.5 shrink-0">
-              {publicUrl && (
-                <Link
-                  to={publicUrl}
-                  className="p-1.5 hover:bg-white/[0.08] rounded transition-colors text-white/40 hover:text-white/70"
-                >
-                  <ExternalLink size={14} />
-                </Link>
+              {isEditing ? (
+                <>
+                  <button
+                    onClick={handleCancel}
+                    title="취소"
+                    className="p-1.5 hover:bg-white/[0.08] rounded transition-colors text-white/40 hover:text-white/70"
+                  >
+                    <RotateCcw size={14} />
+                  </button>
+                  <button
+                    onClick={() => { void handleSave(); }}
+                    disabled={isSaving}
+                    title="저장"
+                    className="p-1.5 hover:bg-[#A8D8FF]/10 rounded transition-colors text-[#A8D8FF]/70 hover:text-[#A8D8FF] disabled:opacity-40"
+                  >
+                    <Check size={14} />
+                  </button>
+                </>
+              ) : (
+                <>
+                  {publicUrl && (
+                    <Link
+                      to={publicUrl}
+                      className="p-1.5 hover:bg-white/[0.08] rounded transition-colors text-white/40 hover:text-white/70"
+                    >
+                      <ExternalLink size={14} />
+                    </Link>
+                  )}
+                  <button
+                    onClick={handleStartEdit}
+                    title="편집"
+                    className="p-1.5 hover:bg-white/[0.08] rounded transition-colors text-white/40 hover:text-white/70"
+                  >
+                    <Pencil size={14} />
+                  </button>
+                  <button
+                    onClick={handleClose}
+                    title="닫기"
+                    className="p-1.5 hover:bg-white/[0.08] rounded transition-colors text-white/40 hover:text-white/70"
+                  >
+                    <X size={14} />
+                  </button>
+                </>
               )}
-              <button
-                onClick={handleClose}
-                className="p-1.5 hover:bg-white/[0.08] rounded transition-colors text-white/40 hover:text-white/70"
-              >
-                <X size={14} />
-              </button>
             </div>
           </div>
 
-          <div className="px-5 py-3 border-b border-white/[0.06]">
-            <div className="text-[9px] font-mono mb-3 tracking-[0.25em] uppercase" style={{ color: 'rgba(139,92,246,0.75)' }}>
-              — properties
+          {/* 속성 — 편집 모드에선 숨겨서 에디터 공간 확보 */}
+          {!isEditing && (
+            <div className="px-5 py-3 border-b border-white/[0.06]">
+              <div className="text-[9px] font-mono mb-3 tracking-[0.25em] uppercase" style={{ color: 'rgba(139,92,246,0.75)' }}>
+                — properties
+              </div>
+              <div className="space-y-2.5">
+                <div className="flex items-center gap-3">
+                  <span className="text-[10px] font-mono text-white/45 w-16 shrink-0 tracking-wider">vis</span>
+                  <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded tracking-wider ${
+                    star.is_public ? 'text-brand-active bg-brand-active/15' : 'text-white/60 bg-white/[0.06]'
+                  }`}>
+                    {star.is_public ? 'public' : 'private'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-[10px] font-mono text-white/45 w-16 shrink-0 tracking-wider">energy</span>
+                  <span className="text-[10px] font-mono text-white/70 tracking-wider">{star.energy_score.toFixed(1)}</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-[10px] font-mono text-white/45 w-16 shrink-0 tracking-wider">coords</span>
+                  <span className="text-[10px] font-mono text-white/60 tracking-wider">
+                    {star.pos_x.toFixed(1)}, {star.pos_y.toFixed(1)}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-[10px] font-mono text-white/45 w-16 shrink-0 tracking-wider">state</span>
+                  <span className="text-[10px] font-mono tracking-wider" style={{ color: style.color }}>
+                    {star.lifecycle_state.replace('_', ' ')}
+                  </span>
+                </div>
+              </div>
             </div>
-            <div className="space-y-2.5">
-              <div className="flex items-center gap-3">
-                <span className="text-[10px] font-mono text-white/45 w-16 shrink-0 tracking-wider">vis</span>
-                <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded tracking-wider ${
-                  star.is_public ? 'text-brand-active bg-brand-active/15' : 'text-white/60 bg-white/[0.06]'
-                }`}>
-                  {star.is_public ? 'public' : 'private'}
-                </span>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="text-[10px] font-mono text-white/45 w-16 shrink-0 tracking-wider">energy</span>
-                <span className="text-[10px] font-mono text-white/70 tracking-wider">{star.energy_score.toFixed(1)}</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="text-[10px] font-mono text-white/45 w-16 shrink-0 tracking-wider">coords</span>
-                <span className="text-[10px] font-mono text-white/60 tracking-wider">
-                  {star.pos_x.toFixed(1)}, {star.pos_y.toFixed(1)}
-                </span>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="text-[10px] font-mono text-white/45 w-16 shrink-0 tracking-wider">state</span>
-                <span className="text-[10px] font-mono tracking-wider" style={{ color: style.color }}>
-                  {star.lifecycle_state.replace('_', ' ')}
-                </span>
-              </div>
-            </div>
-          </div>
+          )}
 
-          <div className="flex-1 overflow-y-auto px-5 py-4 custom-scrollbar">
-            <div className="prose prose-invert prose-sm max-w-none prose-p:text-white/80 prose-headings:text-white/90 prose-headings:font-mono prose-headings:font-medium prose-code:text-brand-active/90 prose-code:bg-white/[0.06]">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {star.content || '*No content available.*'}
-              </ReactMarkdown>
+          {/* 본문 */}
+          {isEditing ? (
+            <div className="flex-1 overflow-hidden" data-color-mode="dark">
+              <MDEditor
+                value={editContent}
+                onChange={(val) => setEditContent(val ?? '')}
+                preview="live"
+                visibleDragbar={false}
+                height="100%"
+                style={{
+                  height: '100%',
+                  borderRadius: 0,
+                  border: 'none',
+                  background: 'transparent',
+                }}
+              />
             </div>
-          </div>
+          ) : (
+            <div className="flex-1 overflow-y-auto px-5 py-4 custom-scrollbar">
+              <div className="prose prose-invert prose-sm max-w-none prose-p:text-white/80 prose-headings:text-white/90 prose-headings:font-mono prose-headings:font-medium prose-code:text-brand-active/90 prose-code:bg-white/[0.06]">
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {star.content || '*No content available.*'}
+                </ReactMarkdown>
+              </div>
+            </div>
+          )}
 
-          <div className="px-5 py-2.5 border-t border-white/[0.06] text-[9px] font-mono text-white/40 tracking-widest">
-            ✦ view time: recording
-          </div>
+          {!isEditing && (
+            <div className="px-5 py-2.5 border-t border-white/[0.06] text-[9px] font-mono text-white/40 tracking-widest">
+              ✦ view time: recording
+            </div>
+          )}
         </>
       )}
     </div>

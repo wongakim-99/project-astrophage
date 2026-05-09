@@ -68,6 +68,29 @@ p, li, blockquote {
   #root::after { animation: none; }
 }
 
+/* MDEditor dark theme — 앱 배경색에 맞게 오버라이드 */
+[data-color-mode="dark"] .w-md-editor {
+  background-color: transparent !important;
+  color: rgba(220, 220, 245, 0.85);
+}
+[data-color-mode="dark"] .w-md-editor-toolbar {
+  background-color: rgba(10, 10, 30, 0.95) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07) !important;
+}
+[data-color-mode="dark"] .w-md-editor-content {
+  background-color: rgba(8, 8, 24, 0.97) !important;
+}
+[data-color-mode="dark"] .w-md-editor-text-pre > code,
+[data-color-mode="dark"] .w-md-editor-text-input {
+  color: rgba(220, 220, 245, 0.85) !important;
+}
+[data-color-mode="dark"] .wmde-markdown {
+  background-color: rgba(8, 8, 24, 0.97) !important;
+  color: rgba(200, 200, 230, 0.8);
+  font-size: 13px;
+  padding: 16px !important;
+}
+
 /* Custom Scrollbar — purple tinted to match terminal theme */
 .custom-scrollbar::-webkit-scrollbar { width: 4px; }
 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }

@@ -73,6 +73,32 @@ export default function StarPanel({ star, galaxyColor }: StarPanelProps) {
         boxShadow: '-12px 0 28px rgba(139, 92, 246, 0.08)',
       }}
     >
+      {isConfirmingDelete && (
+        <div
+          className="absolute inset-0 z-40 flex flex-col items-center justify-center gap-3"
+          style={{ background: 'rgba(8, 8, 28, 0.93)' }}
+        >
+          <Trash2 size={28} className="text-red-400/50 mb-1" />
+          <p className="text-sm font-mono text-white/80">항성을 삭제할까요?</p>
+          <p className="text-[11px] font-mono text-white/40 mb-2">이 작업은 되돌릴 수 없습니다.</p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setIsConfirmingDelete(false)}
+              className="px-4 py-1.5 text-xs font-mono rounded border border-white/10 text-white/50 hover:text-white/80 hover:bg-white/[0.06] transition-colors"
+            >
+              취소
+            </button>
+            <button
+              onClick={() => { void handleDelete(); }}
+              disabled={isDeleting}
+              className="px-4 py-1.5 text-xs font-mono rounded bg-red-500/20 border border-red-500/30 text-red-400 hover:bg-red-500/30 transition-colors disabled:opacity-40"
+            >
+              {isDeleting ? '삭제 중...' : '삭제'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {star && style && (
         <>
           {/* 헤더 */}
@@ -108,25 +134,6 @@ export default function StarPanel({ star, galaxyColor }: StarPanelProps) {
                     disabled={isSaving}
                     title="저장"
                     className="p-1.5 hover:bg-[#A8D8FF]/10 rounded transition-colors text-[#A8D8FF]/70 hover:text-[#A8D8FF] disabled:opacity-40"
-                  >
-                    <Check size={14} />
-                  </button>
-                </>
-              ) : isConfirmingDelete ? (
-                <>
-                  <span className="text-[10px] font-mono text-red-400/80 tracking-wider mr-1">삭제?</span>
-                  <button
-                    onClick={() => setIsConfirmingDelete(false)}
-                    title="취소"
-                    className="p-1.5 hover:bg-white/[0.08] rounded transition-colors text-white/40 hover:text-white/70"
-                  >
-                    <RotateCcw size={14} />
-                  </button>
-                  <button
-                    onClick={() => { void handleDelete(); }}
-                    disabled={isDeleting}
-                    title="삭제 확인"
-                    className="p-1.5 hover:bg-red-500/20 rounded transition-colors text-red-400/70 hover:text-red-400 disabled:opacity-40"
                   >
                     <Check size={14} />
                   </button>

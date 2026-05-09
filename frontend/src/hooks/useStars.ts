@@ -64,3 +64,19 @@ export function useCreateStar() {
     },
   });
 }
+
+interface UpdateStarParams {
+  id: string;
+  title?: string;
+  content?: string;
+}
+
+export function useUpdateStar() {
+  const queryClient = useQueryClient();
+  return useMutation<StarResponse, Error, UpdateStarParams>({
+    mutationFn: ({ id, ...body }) => api.put(`/stars/${id}`, body).then((r) => r.data),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['stars', String(data.galaxy_id)] });
+    },
+  });
+}

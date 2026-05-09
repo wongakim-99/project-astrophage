@@ -25,6 +25,11 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* 한국어 본문 자간 정규화 — IBM Plex Mono fallback 시 Noto Sans KR 자간 벌어짐 방지 */
+p, li, blockquote, label, input, textarea, button {
+  letter-spacing: 0;
+}
+
 #root {
   width: 100vw;
   height: 100vh;
@@ -61,6 +66,94 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   #root::after { animation: none; }
+}
+
+/* ── Tiptap WYSIWYG 에디터 ─────────────────────────────── */
+.tiptap-wrapper .ProseMirror {
+  outline: none;
+  min-height: 100%;
+  color: rgba(220, 220, 245, 0.85);
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 15px;
+  line-height: 1.8;
+  letter-spacing: 0;
+  caret-color: #A8D8FF;
+}
+
+.tiptap-wrapper .ProseMirror h1 { font-size: 1.9rem; font-weight: 700; margin: 1.2rem 0 0.4rem; color: rgba(255,255,255,0.92); letter-spacing: -0.01em; }
+.tiptap-wrapper .ProseMirror h2 { font-size: 1.4rem; font-weight: 600; margin: 1rem 0 0.3rem; color: rgba(255,255,255,0.88); }
+.tiptap-wrapper .ProseMirror h3 { font-size: 1.1rem; font-weight: 600; margin: 0.8rem 0 0.2rem; color: rgba(255,255,255,0.85); }
+.tiptap-wrapper .ProseMirror p  { margin: 0.3rem 0; }
+.tiptap-wrapper .ProseMirror ul,
+.tiptap-wrapper .ProseMirror ol { padding-left: 1.4rem; margin: 0.4rem 0; }
+.tiptap-wrapper .ProseMirror li { margin: 0.15rem 0; }
+.tiptap-wrapper .ProseMirror blockquote {
+  border-left: 3px solid rgba(168, 216, 255, 0.4);
+  padding-left: 1rem;
+  color: rgba(200, 200, 230, 0.6);
+  margin: 0.6rem 0;
+  font-style: italic;
+}
+.tiptap-wrapper .ProseMirror code {
+  background: rgba(168, 216, 255, 0.1);
+  color: #A8D8FF;
+  border-radius: 4px;
+  padding: 0.1em 0.4em;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.88em;
+}
+.tiptap-wrapper .ProseMirror pre {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  padding: 1rem 1.2rem;
+  overflow-x: auto;
+  margin: 0.8rem 0;
+}
+.tiptap-wrapper .ProseMirror pre code {
+  background: none;
+  color: rgba(220, 220, 245, 0.85);
+  padding: 0;
+}
+.tiptap-wrapper .ProseMirror hr {
+  border: none;
+  border-top: 1px solid rgba(255,255,255,0.1);
+  margin: 1.2rem 0;
+}
+.tiptap-wrapper .ProseMirror strong { color: rgba(255,255,255,0.95); }
+.tiptap-wrapper .ProseMirror em    { color: rgba(200,200,230,0.8); }
+
+/* placeholder */
+.tiptap-wrapper .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: rgba(255,255,255,0.2);
+  pointer-events: none;
+  height: 0;
+  font-style: italic;
+}
+
+/* MDEditor dark theme — 앱 배경색에 맞게 오버라이드 */
+[data-color-mode="dark"] .w-md-editor {
+  background-color: transparent !important;
+  color: rgba(220, 220, 245, 0.85);
+}
+[data-color-mode="dark"] .w-md-editor-toolbar {
+  background-color: rgba(10, 10, 30, 0.95) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07) !important;
+}
+[data-color-mode="dark"] .w-md-editor-content {
+  background-color: rgba(8, 8, 24, 0.97) !important;
+}
+[data-color-mode="dark"] .w-md-editor-text-pre > code,
+[data-color-mode="dark"] .w-md-editor-text-input {
+  color: rgba(220, 220, 245, 0.85) !important;
+}
+[data-color-mode="dark"] .wmde-markdown {
+  background-color: rgba(8, 8, 24, 0.97) !important;
+  color: rgba(200, 200, 230, 0.8);
+  font-size: 13px;
+  padding: 16px !important;
 }
 
 /* Custom Scrollbar — purple tinted to match terminal theme */

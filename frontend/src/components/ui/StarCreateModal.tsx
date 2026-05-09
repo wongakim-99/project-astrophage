@@ -78,8 +78,8 @@ export default function StarCreateModal({ preselectedGalaxyId, onClose }: StarCr
           <X size={16} />
         </button>
 
-        <h2 className="text-base font-mono font-medium text-white/90 mb-1 tracking-wider">새 지식 추가</h2>
-        <p className="text-xs font-mono text-white/35 mb-6">새로운 항성을 우주에 배치합니다</p>
+        <h2 className="text-base font-mono font-medium text-white/90 mb-1">새 지식 추가</h2>
+        <p className="text-xs text-white/35 mb-6">새로운 항성을 우주에 배치합니다</p>
 
         {!hasGalaxies ? (
           <div className="flex flex-col items-center gap-4 py-8 text-center">

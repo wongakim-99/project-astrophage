@@ -10,7 +10,8 @@ ALGORITHM = "HS256"
 
 def hash_password(password: str) -> str:
     """평문 비밀번호를 저장하기 전에 bcrypt로 해시한다."""
-    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    rounds = 8 if settings.app_env == "development" else 12
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt(rounds)).decode("utf-8")
 
 
 def verify_password(plain: str, hashed: str) -> bool:

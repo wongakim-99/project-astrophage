@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router';
+import { useParams, useNavigate, Navigate } from 'react-router';
 import { Canvas } from '@react-three/fiber';
 import { Stars } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
@@ -7,8 +7,8 @@ import { ArrowLeft, Plus } from 'lucide-react';
 import BoundedMapControls from '../components/three/BoundedMapControls';
 import StarMesh from '../components/three/StarMesh';
 import StarPanel from '../components/ui/StarPanel';
-import StarCreateModal from '../components/ui/StarCreateModal';
 import { useStarStore } from '../stores/starStore';
+import { useAuthStore } from '../stores/authStore';
 import { useGalaxies } from '../hooks/useGalaxies';
 import { useGalaxyStars } from '../hooks/useStars';
 import { LIFECYCLE_STYLE } from '../types/api';
@@ -17,7 +17,9 @@ export default function GalaxyPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [navigationState, setNavigationState] = useState({ vignetteIntensity: 0, showRecenterCue: false });
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
+
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const isInitialized = useAuthStore((s) => s.isInitialized);
 
   const { data: galaxies = [] } = useGalaxies();
   const { data: stars = [], isLoading } = useGalaxyStars(id);
@@ -28,6 +30,9 @@ export default function GalaxyPage() {
   useEffect(() => {
     return () => selectStar(null);
   }, [selectStar]);
+
+  if (!isInitialized) return null;
+  if (!isAuthenticated) return <Navigate to="/auth/login" replace />;
 
   const selectedStar = stars.find((s) => s.slug === selectedStarSlug) ?? null;
   const vignetteEdge = 0.48 + navigationState.vignetteIntensity * 0.28;
@@ -53,7 +58,7 @@ export default function GalaxyPage() {
       </div>
 
       <button
-        onClick={() => setIsCreateOpen(true)}
+        onClick={() => navigate(`/galaxy/${id}/new`)}
         className="absolute bottom-8 right-8 z-20 flex items-center gap-2 bg-[#A8D8FF]/90 hover:bg-[#A8D8FF] text-[#050510] font-mono font-bold text-sm px-4 py-2.5 rounded-full shadow-lg shadow-[#A8D8FF]/20 hover:shadow-[#A8D8FF]/40 transition-all duration-200 hover:scale-105"
       >
         <Plus size={16} />
@@ -107,13 +112,6 @@ export default function GalaxyPage() {
       </div>
 
       <StarPanel star={selectedStar} galaxyColor={galaxy?.color} />
-
-      {isCreateOpen && (
-        <StarCreateModal
-          preselectedGalaxyId={id}
-          onClose={() => setIsCreateOpen(false)}
-        />
-      )}
     </div>
   );
 }

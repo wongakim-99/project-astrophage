@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router';
+import { useParams, useNavigate, Navigate } from 'react-router';
 import { Canvas } from '@react-three/fiber';
 import { Stars } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
@@ -9,6 +9,7 @@ import StarMesh from '../components/three/StarMesh';
 import StarPanel from '../components/ui/StarPanel';
 import StarCreateModal from '../components/ui/StarCreateModal';
 import { useStarStore } from '../stores/starStore';
+import { useAuthStore } from '../stores/authStore';
 import { useGalaxies } from '../hooks/useGalaxies';
 import { useGalaxyStars } from '../hooks/useStars';
 import { LIFECYCLE_STYLE } from '../types/api';
@@ -19,6 +20,9 @@ export default function GalaxyPage() {
   const [navigationState, setNavigationState] = useState({ vignetteIntensity: 0, showRecenterCue: false });
   const [isCreateOpen, setIsCreateOpen] = useState(false);
 
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const isInitialized = useAuthStore((s) => s.isInitialized);
+
   const { data: galaxies = [] } = useGalaxies();
   const { data: stars = [], isLoading } = useGalaxyStars(id);
   const { selectStar, selectedStarSlug } = useStarStore();
@@ -28,6 +32,9 @@ export default function GalaxyPage() {
   useEffect(() => {
     return () => selectStar(null);
   }, [selectStar]);
+
+  if (!isInitialized) return null;
+  if (!isAuthenticated) return <Navigate to="/auth/login" replace />;
 
   const selectedStar = stars.find((s) => s.slug === selectedStarSlug) ?? null;
   const vignetteEdge = 0.48 + navigationState.vignetteIntensity * 0.28;

@@ -22,14 +22,14 @@ from app.services.umap_service import place_new_star
 NOVA_K = 5
 
 
-class StarError(Exception):
-    """라우터가 HTTP 오류로 변환할 항성 도메인 예외."""
+class StarUseCaseError(Exception):
+    """라우터가 HTTP 오류로 변환할 항성 유스케이스 예외."""
 
     pass
 
 
-class StarService:
-    """항성의 소유권, 임베딩, 배치, 생애주기, 공개 여부 규칙을 담당한다."""
+class StarUseCases:
+    """항성 유스케이스의 트랜잭션 흐름과 외부 포트 호출을 조율한다."""
 
     def __init__(self, session: AsyncSession) -> None:
         """
@@ -93,11 +93,11 @@ class StarService:
         user_repo = UserRepository(self._session)
         user = await user_repo.get_by_username(username)
         if user is None:
-            raise StarError("User not found")
+            raise StarUseCaseError("User not found")
 
         star = await self._repo.get_public_by_username_slug(username, slug)
         if star is None:
-            raise StarError("Star not found or not public")
+            raise StarUseCaseError("Star not found or not public")
         return star, username
 
     async def preview_similar(
@@ -142,7 +142,7 @@ class StarService:
         await self._assert_galaxy_owned(user_id, galaxy_id)
 
         if await self._repo.get_by_user_and_slug(user_id, slug):
-            raise StarError(f"Slug '{slug}' already in use")
+            raise StarUseCaseError(f"Slug '{slug}' already in use")
 
         # 임베딩은 명시적인 생성/수정 흐름에서만 만든다. GET 엔드포인트는
         # 지연과 API 비용을 피하기 위해 저장된 벡터를 재사용해야 한다.
@@ -343,7 +343,7 @@ class StarService:
         """
         star = await self._repo.get_by_id(star_id)
         if star is None or star.user_id != user_id:
-            raise StarError("Star not found")
+            raise StarUseCaseError("Star not found")
         return star
 
     async def _assert_galaxy_owned(self, user_id: uuid.UUID, galaxy_id: uuid.UUID) -> None:
@@ -356,4 +356,4 @@ class StarService:
         """
         galaxy = await self._galaxy_repo.get_by_id(galaxy_id)
         if galaxy is None or galaxy.user_id != user_id:
-            raise StarError("Galaxy not found")
+            raise StarUseCaseError("Galaxy not found")

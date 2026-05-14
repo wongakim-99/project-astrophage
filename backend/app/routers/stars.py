@@ -4,6 +4,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application.star_use_cases import StarUseCaseError, StarUseCases
 from app.core.database import get_session
 from app.core.dependencies import CurrentUser
 from app.schemas.common import MessageResponse
@@ -16,7 +17,6 @@ from app.schemas.star import (
     ViewEventCreate,
     VisibilityUpdate,
 )
-from app.services.star_service import StarError, StarService
 
 router = APIRouter(prefix="/stars", tags=["stars"])
 
@@ -35,10 +35,10 @@ async def list_stars_in_galaxy(
         current_user: Bearer access token에서 확인한 현재 사용자.
         session: 요청 범위에서 공유하는 비동기 DB 세션.
     """
-    service = StarService(session)
+    use_cases = StarUseCases(session)
     try:
-        return await service.get_stars_in_galaxy(current_user.id, galaxy_id)
-    except StarError as e:
+        return await use_cases.get_stars_in_galaxy(current_user.id, galaxy_id)
+    except StarUseCaseError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
 
 
@@ -56,10 +56,10 @@ async def preview_similar(
         current_user: Bearer access token에서 확인한 현재 사용자.
         session: 요청 범위에서 공유하는 비동기 DB 세션.
     """
-    service = StarService(session)
+    use_cases = StarUseCases(session)
     try:
-        return await service.preview_similar(current_user.id, body.galaxy_id, body.title, body.content)
-    except StarError as e:
+        return await use_cases.preview_similar(current_user.id, body.galaxy_id, body.title, body.content)
+    except StarUseCaseError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
 
 
@@ -77,16 +77,16 @@ async def create_star(
         current_user: Bearer access token에서 확인한 현재 사용자.
         session: 요청 범위에서 공유하는 비동기 DB 세션.
     """
-    service = StarService(session)
+    use_cases = StarUseCases(session)
     try:
-        return await service.create_star(
+        return await use_cases.create_star(
             user_id=current_user.id,
             galaxy_id=body.galaxy_id,
             title=body.title,
             slug=body.slug,
             content=body.content,
         )
-    except StarError as e:
+    except StarUseCaseError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e)) from e
 
 
@@ -106,16 +106,16 @@ async def update_star(
         current_user: Bearer access token에서 확인한 현재 사용자.
         session: 요청 범위에서 공유하는 비동기 DB 세션.
     """
-    service = StarService(session)
+    use_cases = StarUseCases(session)
     try:
-        return await service.update_star(
+        return await use_cases.update_star(
             user_id=current_user.id,
             star_id=star_id,
             title=body.title,
             content=body.content,
             galaxy_id=body.galaxy_id,
         )
-    except StarError as e:
+    except StarUseCaseError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
 
 
@@ -133,10 +133,10 @@ async def delete_star(
         current_user: Bearer access token에서 확인한 현재 사용자.
         session: 요청 범위에서 공유하는 비동기 DB 세션.
     """
-    service = StarService(session)
+    use_cases = StarUseCases(session)
     try:
-        await service.delete_star(current_user.id, star_id)
-    except StarError as e:
+        await use_cases.delete_star(current_user.id, star_id)
+    except StarUseCaseError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
     return MessageResponse(message="Star deleted")
 
@@ -157,15 +157,15 @@ async def record_view(
         current_user: Bearer access token에서 확인한 현재 사용자.
         session: 요청 범위에서 공유하는 비동기 DB 세션.
     """
-    service = StarService(session)
+    use_cases = StarUseCases(session)
     try:
-        return await service.record_view(
+        return await use_cases.record_view(
             user_id=current_user.id,
             star_id=star_id,
             duration_seconds=body.duration_seconds,
             is_edit=body.is_edit,
         )
-    except StarError as e:
+    except StarUseCaseError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
 
 
@@ -185,8 +185,8 @@ async def update_visibility(
         current_user: Bearer access token에서 확인한 현재 사용자.
         session: 요청 범위에서 공유하는 비동기 DB 세션.
     """
-    service = StarService(session)
+    use_cases = StarUseCases(session)
     try:
-        return await service.set_visibility(current_user.id, star_id, body.is_public)
-    except StarError as e:
+        return await use_cases.set_visibility(current_user.id, star_id, body.is_public)
+    except StarUseCaseError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e

@@ -3,7 +3,7 @@ import { X, ExternalLink, Pencil, Trash2 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router';
 import { useAuthStore } from '../../stores/authStore';
 import { useStarStore } from '../../stores/starStore';
-import { useDeleteStar } from '../../hooks/useStars';
+import { useDeleteStar, useToggleStarVisibility } from '../../hooks/useStars';
 import type { StarResponse } from '../../types/api';
 import { LIFECYCLE_STYLE } from '../../types/api';
 
@@ -17,6 +17,7 @@ export default function StarPanel({ star, galaxyColor }: StarPanelProps) {
   const { isPanelOpen, setPanelOpen, selectStar } = useStarStore();
   const user = useAuthStore((s) => s.user);
   const { mutateAsync: deleteStar, isPending: isDeleting } = useDeleteStar();
+  const { mutateAsync: toggleVisibility, isPending: isTogglingVisibility } = useToggleStarVisibility();
 
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
 
@@ -129,11 +130,23 @@ export default function StarPanel({ star, galaxyColor }: StarPanelProps) {
             <div className="flex items-center gap-6 text-[10px] font-mono tracking-wider">
               <div className="flex items-center gap-2">
                 <span className="text-white/35">vis</span>
-                <span className={`px-1.5 py-0.5 rounded ${
-                  star.is_public ? 'text-brand-active bg-brand-active/15' : 'text-white/60 bg-white/[0.06]'
-                }`}>
+                <button
+                  onClick={() => {
+                    void toggleVisibility({
+                      id: String(star.id),
+                      galaxy_id: String(star.galaxy_id),
+                      is_public: !star.is_public,
+                    });
+                  }}
+                  disabled={isTogglingVisibility}
+                  className={`px-1.5 py-0.5 rounded transition-colors disabled:opacity-50 ${
+                    star.is_public
+                      ? 'text-brand-active bg-brand-active/15 hover:bg-brand-active/25'
+                      : 'text-white/60 bg-white/[0.06] hover:bg-white/[0.12]'
+                  }`}
+                >
                   {star.is_public ? 'public' : 'private'}
-                </span>
+                </button>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-white/35">energy</span>

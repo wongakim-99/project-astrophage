@@ -110,7 +110,9 @@ export default function PublicUniversePage() {
                       <Compass size={16} className="mt-0.5 shrink-0 text-white/25 transition-colors group-hover:text-[#A8D8FF]/70" />
                     </div>
                     <p className="line-clamp-3 min-h-16 text-sm leading-5 text-white/45">
-                      {star.content || '내용 없음'}
+                      {star.content
+                        ? star.content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim() || '내용 없음'
+                        : '내용 없음'}
                     </p>
                     <div className="mt-4 flex items-center justify-between text-[11px] font-mono text-white/30">
                       <span className="truncate">{star.slug}</span>

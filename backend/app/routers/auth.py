@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_session
 from app.core.dependencies import CurrentUser
 from app.core.security import decode_token
+from app.repositories.star_repo import StarRepository
 from app.schemas.auth import (
     LoginRequest,
     RegisterRequest,
@@ -140,8 +141,11 @@ async def update_me_settings(
     current_user: CurrentUser,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> UserResponse:
-    """우주 탐색 노출 여부를 사용자 단위로 저장한다."""
+    """우주 탐색 노출 여부를 사용자 단위로 저장한다. 공개로 전환 시 기존 항성 전부 공개."""
     current_user.is_universe_public = body.is_universe_public
+    if body.is_universe_public:
+        star_repo = StarRepository(session)
+        await star_repo.set_all_public_for_user(current_user.id, is_public=True)
     await session.commit()
     await session.refresh(current_user)
     return UserResponse(

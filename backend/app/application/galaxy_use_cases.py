@@ -1,19 +1,21 @@
 import uuid
+from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.galaxy import GALAXY_COLOR_PALETTE, Galaxy
+from app.domain.galaxy.rules import default_galaxy_color
+from app.models.galaxy import Galaxy
 from app.repositories.galaxy_repo import GalaxyRepository
 
 
-class GalaxyError(Exception):
-    """라우터가 HTTP 오류로 변환할 은하 도메인 예외."""
+class GalaxyUseCaseError(Exception):
+    """라우터가 HTTP 오류로 변환할 은하 유스케이스 예외."""
 
     pass
 
 
-class GalaxyService:
-    """사용자 소유 은하 CRUD의 비즈니스 규칙."""
+class GalaxyUseCases:
+    """사용자 소유 은하 CRUD 유스케이스의 트랜잭션 흐름을 조율한다."""
 
     def __init__(self, session: AsyncSession) -> None:
         """
@@ -23,7 +25,7 @@ class GalaxyService:
         self._session = session
         self._repo = GalaxyRepository(session)
 
-    async def list_galaxies(self, user_id: uuid.UUID) -> list[dict]:  # type: ignore[type-arg]
+    async def list_galaxies(self, user_id: uuid.UUID) -> list[dict[str, Any]]:
         """
         탐색 UI에 필요한 가벼운 항성 수와 함께 은하 목록을 반환한다.
 
@@ -31,10 +33,10 @@ class GalaxyService:
             user_id: 은하 목록을 가져올 소유자 UUID.
         """
         galaxies = await self._repo.list_by_user(user_id)
-        result = []
-        for g in galaxies:
-            count = await self._repo.count_stars(g.id)
-            result.append({**g.__dict__, "star_count": count})
+        result: list[dict[str, Any]] = []
+        for galaxy in galaxies:
+            count = await self._repo.count_stars(galaxy.id)
+            result.append({**galaxy.__dict__, "star_count": count})
         return result
 
     async def create_galaxy(
@@ -50,13 +52,11 @@ class GalaxyService:
             color: 클라이언트가 지정한 7자리 hex 색상. None이면 팔레트에서 자동 선택한다.
         """
         if await self._repo.get_by_user_and_slug(user_id, slug):
-            raise GalaxyError(f"Galaxy slug '{slug}' already exists")
+            raise GalaxyUseCaseError(f"Galaxy slug '{slug}' already exists")
 
         if color is None:
-            # 결정적인 팔레트 순환으로 생성 로직은 단순하게 유지하면서
-            # 인접한 은하의 기본 색상이 서로 구분되게 한다.
             existing = await self._repo.list_by_user(user_id)
-            color = GALAXY_COLOR_PALETTE[len(existing) % len(GALAXY_COLOR_PALETTE)]
+            color = default_galaxy_color(len(existing))
 
         galaxy = await self._repo.create(user_id=user_id, name=name, slug=slug, color=color)
         await self._session.commit()
@@ -101,5 +101,5 @@ class GalaxyService:
         """
         galaxy = await self._repo.get_by_id(galaxy_id)
         if galaxy is None or galaxy.user_id != user_id:
-            raise GalaxyError("Galaxy not found")
+            raise GalaxyUseCaseError("Galaxy not found")
         return galaxy

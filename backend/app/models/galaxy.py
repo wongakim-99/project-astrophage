@@ -12,18 +12,6 @@ if TYPE_CHECKING:
     from app.models.star import Star
     from app.models.user import User
 
-GALAXY_COLOR_PALETTE = [
-    "#4A9EFF",
-    "#FF7043",
-    "#66BB6A",
-    "#AB47BC",
-    "#FFA726",
-    "#26C6DA",
-    "#EC407A",
-    "#8D6E63",
-]
-
-
 class Galaxy(Base, TimestampMixin):
     """관련 항성을 묶는 사용자 소유 지식 도메인."""
 

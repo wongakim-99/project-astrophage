@@ -4,11 +4,11 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application.galaxy_use_cases import GalaxyUseCaseError, GalaxyUseCases
 from app.core.database import get_session
 from app.core.dependencies import CurrentUser
 from app.schemas.common import MessageResponse
 from app.schemas.galaxy import GalaxyCreate, GalaxyResponse, GalaxyUpdate
-from app.services.galaxy_service import GalaxyError, GalaxyService
 
 router = APIRouter(prefix="/galaxies", tags=["galaxies"])
 
@@ -25,8 +25,8 @@ async def list_galaxies(
         current_user: Bearer access token에서 확인한 현재 사용자.
         session: 요청 범위에서 공유하는 비동기 DB 세션.
     """
-    service = GalaxyService(session)
-    galaxies = await service.list_galaxies(current_user.id)
+    use_cases = GalaxyUseCases(session)
+    galaxies = await use_cases.list_galaxies(current_user.id)
     return [GalaxyResponse(**g) for g in galaxies]
 
 
@@ -44,15 +44,15 @@ async def create_galaxy(
         current_user: Bearer access token에서 확인한 현재 사용자.
         session: 요청 범위에서 공유하는 비동기 DB 세션.
     """
-    service = GalaxyService(session)
+    use_cases = GalaxyUseCases(session)
     try:
-        galaxy = await service.create_galaxy(
+        galaxy = await use_cases.create_galaxy(
             user_id=current_user.id,
             name=body.name,
             slug=body.slug,
             color=body.color,
         )
-    except GalaxyError as e:
+    except GalaxyUseCaseError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e)) from e
     return GalaxyResponse(id=galaxy.id, name=galaxy.name, slug=galaxy.slug, color=galaxy.color)
 
@@ -73,15 +73,15 @@ async def update_galaxy(
         current_user: Bearer access token에서 확인한 현재 사용자.
         session: 요청 범위에서 공유하는 비동기 DB 세션.
     """
-    service = GalaxyService(session)
+    use_cases = GalaxyUseCases(session)
     try:
-        galaxy = await service.update_galaxy(
+        galaxy = await use_cases.update_galaxy(
             user_id=current_user.id,
             galaxy_id=galaxy_id,
             name=body.name,
             color=body.color,
         )
-    except GalaxyError as e:
+    except GalaxyUseCaseError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
     return GalaxyResponse(id=galaxy.id, name=galaxy.name, slug=galaxy.slug, color=galaxy.color)
 
@@ -100,9 +100,9 @@ async def delete_galaxy(
         current_user: Bearer access token에서 확인한 현재 사용자.
         session: 요청 범위에서 공유하는 비동기 DB 세션.
     """
-    service = GalaxyService(session)
+    use_cases = GalaxyUseCases(session)
     try:
-        await service.delete_galaxy(user_id=current_user.id, galaxy_id=galaxy_id)
-    except GalaxyError as e:
+        await use_cases.delete_galaxy(user_id=current_user.id, galaxy_id=galaxy_id)
+    except GalaxyUseCaseError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
     return MessageResponse(message="Galaxy deleted")

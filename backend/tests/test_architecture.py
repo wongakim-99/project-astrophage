@@ -35,3 +35,18 @@ def test_star_domain_uses_bounded_context_directory() -> None:
     assert not (domain_root / "lifecycle.py").exists()
     assert not (domain_root / "star_placement.py").exists()
     assert not (domain_root / "star_rules.py").exists()
+
+
+def test_galaxy_router_depends_on_application_use_cases() -> None:
+    source_path = PROJECT_ROOT / "app" / "routers" / "galaxies.py"
+    source = source_path.read_text(encoding="utf-8")
+
+    assert "app.application.galaxy_use_cases" in source
+    assert "app.services.galaxy_service" not in source
+
+
+def test_galaxy_domain_uses_bounded_context_directory() -> None:
+    domain_root = PROJECT_ROOT / "app" / "domain"
+    galaxy_domain = domain_root / "galaxy"
+
+    assert (galaxy_domain / "rules.py").exists()

@@ -1,18 +1,9 @@
 import uuid
 from datetime import datetime
-from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
-
-class LifecycleState(StrEnum):
-    """최근 에너지와 비활성 기간에서 계산되는 UI용 생애주기 라벨."""
-
-    MAIN_SEQUENCE = "main_sequence"   # 활성: 최근 30일 에너지 3 이상
-    YELLOW_DWARF = "yellow_dwarf"     # 보통: 최근 30일 에너지 1~2
-    RED_GIANT = "red_giant"           # 희미해짐: 60~90일간 유효 조회 없음
-    WHITE_DWARF = "white_dwarf"       # 잊힘: 90~180일간 유효 조회 없음
-    DARK_MATTER = "dark_matter"       # 유실: 180일 이상 유효 조회 없음
+from app.domain.lifecycle import LifecycleState
 
 
 class StarCreate(BaseModel):

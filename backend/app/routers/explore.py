@@ -4,9 +4,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_session
+from app.domain.lifecycle import compute_lifecycle
 from app.repositories.view_event_repo import ViewEventRepository
 from app.schemas.star import StarPublicResponse
-from app.services.lifecycle import compute_lifecycle
 from app.services.star_service import StarError, StarService
 
 router = APIRouter(tags=["explore"])

@@ -12,8 +12,6 @@ from app.models.base import Base, new_uuid
 if TYPE_CHECKING:
     from app.models.star import Star
 
-VALID_DWELL_SECONDS = 30
-
 
 class ViewEvent(Base):
     """생애주기 상태의 에너지 원천. 유효 체류, 편집, Nova 이벤트를 저장한다."""

@@ -2,15 +2,20 @@ import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.domain.lifecycle import compute_lifecycle
+from app.domain.star_rules import (
+    direct_view_energy,
+    embedding_source,
+    initial_star_visibility,
+    nova_energy,
+)
 from app.models.star import Star
-from app.models.view_event import VALID_DWELL_SECONDS
 from app.repositories.galaxy_repo import GalaxyRepository
 from app.repositories.star_repo import StarRepository
 from app.repositories.user_repo import UserRepository
 from app.repositories.view_event_repo import ViewEventRepository
 from app.schemas.star import SimilarStarPreview, StarResponse
 from app.services import embedding as embed_svc
-from app.services.lifecycle import NOVA_ENERGY_RATIO, compute_lifecycle
 from app.services.umap_service import place_new_star
 
 # 유효 조회에서 Nova 에너지를 받을 같은 은하 내 이웃 항성 수.
@@ -108,8 +113,7 @@ class StarService:
             content: 임베딩 기준 텍스트에 포함할 임시 항성 본문.
         """
         await self._assert_galaxy_owned(user_id, galaxy_id)
-        text = f"{title}\n{content}"
-        vec = await embed_svc.embed_text(text)
+        vec = await embed_svc.embed_text(embedding_source(title, content))
         similar = await self._repo.find_similar_in_galaxy(galaxy_id, vec, k=5)
         return [
             SimilarStarPreview(id=s.id, title=s.title, similarity=round(sim, 3))
@@ -142,8 +146,7 @@ class StarService:
 
         # 임베딩은 명시적인 생성/수정 흐름에서만 만든다. GET 엔드포인트는
         # 지연과 API 비용을 피하기 위해 저장된 벡터를 재사용해야 한다.
-        text = f"{title}\n{content}"
-        vec = await embed_svc.embed_text(text)
+        vec = await embed_svc.embed_text(embedding_source(title, content))
 
         existing = await self._repo.list_by_galaxy(galaxy_id)
         # 새 항성은 유사한 기존 항성 근처에 배치하되, 기존 좌표는 움직이지 않는다.
@@ -152,7 +155,7 @@ class StarService:
 
         # 우주가 공개 상태면 신규 항성도 바로 공개로 생성한다.
         user = await self._user_repo.get_by_id(user_id)
-        is_public = user.is_universe_public if user else False
+        is_public = initial_star_visibility(user.is_universe_public if user else False)
 
         star = await self._repo.create(
             user_id=user_id,
@@ -196,7 +199,7 @@ class StarService:
             new_title = title or star.title
             new_content = content if content is not None else star.content
             # 의미 콘텐츠가 바뀔 때만 다시 임베딩한다. 임베딩이 바뀌어도 좌표는 고정한다.
-            new_embedding = await embed_svc.embed_text(f"{new_title}\n{new_content}")
+            new_embedding = await embed_svc.embed_text(embedding_source(new_title, new_content))
 
         star = await self._repo.update(
             star,
@@ -253,21 +256,19 @@ class StarService:
             is_edit: 편집으로 발생한 이벤트인지 여부. 편집은 항상 유효 에너지로 처리한다.
         """
         star = await self._get_owned(user_id, star_id)
-        # 편집은 항상 유효 에너지이며 2배로 계산한다. 단순 조회는 30초 체류 기준을 만족해야 한다.
-        is_valid = is_edit or duration_seconds >= VALID_DWELL_SECONDS
+        direct_energy = direct_view_energy(duration_seconds=duration_seconds, is_edit=is_edit)
 
-        base_energy = 2.0 if is_edit else 1.0
         await self._view_repo.create(
             star_id=star_id,
             user_id=user_id,
             duration_seconds=duration_seconds,
-            is_valid=is_valid,
+            is_valid=direct_energy.is_valid,
             is_edit=is_edit,
-            energy_value=base_energy,
+            energy_value=direct_energy.value,
         )
 
-        if is_valid:
-            await self._propagate_nova(star, base_energy)
+        if direct_energy.is_valid:
+            await self._propagate_nova(star, direct_energy.value)
 
         await self._session.commit()
         return await self._to_response(star)
@@ -290,7 +291,6 @@ class StarService:
             source_star: 직접 조회 또는 편집 이벤트가 발생한 원본 Star.
             base_energy: 원본 이벤트의 에너지 값. Nova 전파 비율을 곱하는 기준값이다.
         """
-        nova_energy = base_energy * NOVA_ENERGY_RATIO
         similar = await self._repo.find_similar_in_galaxy(
             source_star.galaxy_id,
             source_star.embedding,
@@ -304,7 +304,7 @@ class StarService:
                 duration_seconds=0,
                 is_valid=True,
                 is_edit=False,
-                energy_value=nova_energy,
+                energy_value=nova_energy(base_energy),
             )
 
     async def _to_response(self, star: Star) -> StarResponse:

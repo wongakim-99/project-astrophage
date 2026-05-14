@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.adapters.openai_embedding_provider import OpenAIEmbeddingProvider
 from app.application.star_use_cases import StarUseCaseError, StarUseCases
 from app.core.database import get_session
-from app.domain.lifecycle import compute_lifecycle
+from app.domain.star.lifecycle import compute_lifecycle
 from app.repositories.view_event_repo import ViewEventRepository
 from app.schemas.star import StarPublicResponse
 

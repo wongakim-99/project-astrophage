@@ -1,7 +1,7 @@
 """HTTP/DB와 분리된 항성 도메인 규칙 테스트."""
 
-from app.domain.star_placement import place_new_star
-from app.domain.star_rules import (
+from app.domain.star.placement import place_new_star
+from app.domain.star.rules import (
     NOVA_ENERGY_RATIO,
     VALID_DWELL_SECONDS,
     direct_view_energy,

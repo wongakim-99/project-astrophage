@@ -2,7 +2,7 @@
 
 from httpx import AsyncClient
 
-from app.domain.lifecycle import DAYS_DARK_MATTER_START, compute_lifecycle
+from app.domain.star.lifecycle import DAYS_DARK_MATTER_START, compute_lifecycle
 from app.models.user import User
 
 # ── 헬퍼 ──────────────────────────────────────────────────────────────────────

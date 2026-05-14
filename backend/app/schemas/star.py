@@ -3,7 +3,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
-from app.domain.lifecycle import LifecycleState
+from app.domain.star.lifecycle import LifecycleState
 
 
 class StarCreate(BaseModel):

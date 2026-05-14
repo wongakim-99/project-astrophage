@@ -2,9 +2,9 @@ import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.domain.lifecycle import compute_lifecycle
-from app.domain.star_placement import place_new_star
-from app.domain.star_rules import (
+from app.domain.star.lifecycle import compute_lifecycle
+from app.domain.star.placement import place_new_star
+from app.domain.star.rules import (
     direct_view_energy,
     embedding_source,
     initial_star_visibility,

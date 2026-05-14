@@ -23,3 +23,15 @@ def test_star_use_cases_do_not_depend_on_services_layer() -> None:
 
     assert "app.services." not in source
     assert "from app.services" not in source
+
+
+def test_star_domain_uses_bounded_context_directory() -> None:
+    domain_root = PROJECT_ROOT / "app" / "domain"
+    star_domain = domain_root / "star"
+
+    assert (star_domain / "lifecycle.py").exists()
+    assert (star_domain / "placement.py").exists()
+    assert (star_domain / "rules.py").exists()
+    assert not (domain_root / "lifecycle.py").exists()
+    assert not (domain_root / "star_placement.py").exists()
+    assert not (domain_root / "star_rules.py").exists()

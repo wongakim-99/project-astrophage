@@ -66,3 +66,18 @@ def test_auth_use_cases_do_not_depend_on_services_layer() -> None:
 
     assert "app.services." not in source
     assert "from app.services" not in source
+
+
+def test_adapters_do_not_depend_on_services_layer() -> None:
+    adapter_root = PROJECT_ROOT / "app" / "adapters"
+
+    for source_path in adapter_root.glob("*.py"):
+        source = source_path.read_text(encoding="utf-8")
+        assert "app.services." not in source
+        assert "from app.services" not in source
+
+
+def test_services_layer_has_no_python_modules() -> None:
+    services_root = PROJECT_ROOT / "app" / "services"
+
+    assert not list(services_root.glob("*.py"))

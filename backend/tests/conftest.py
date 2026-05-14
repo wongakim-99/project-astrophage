@@ -18,14 +18,14 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 load_dotenv()
 
-from app.core.dependencies import get_current_user, get_session
-from app.main import app
-from app.models.base import Base
-from app.models.galaxy import Galaxy  # noqa: F401 — Base에 등록
-from app.models.star import Star  # noqa: F401
-from app.models.user import User  # noqa: F401
-from app.models.view_event import ViewEvent  # noqa: F401
-from app.models.wormhole import Wormhole  # noqa: F401
+from app.core.dependencies import get_current_user, get_session  # noqa: E402
+from app.main import app  # noqa: E402
+from app.models.base import Base  # noqa: E402
+from app.models.galaxy import Galaxy  # noqa: E402, F401 — Base에 등록
+from app.models.star import Star  # noqa: E402, F401
+from app.models.user import User  # noqa: E402, F401
+from app.models.view_event import ViewEvent  # noqa: E402, F401
+from app.models.wormhole import Wormhole  # noqa: E402, F401
 
 TEST_DATABASE_URL = os.getenv(
     "TEST_DATABASE_URL",
@@ -66,7 +66,10 @@ async def client(session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
 
     app.dependency_overrides[get_session] = _override_session
 
-    with patch("app.services.embedding.embed_text", new_callable=AsyncMock) as mock_embed:
+    with patch(
+        "app.adapters.openai_embedding_provider.OpenAIEmbeddingProvider.embed_text",
+        new_callable=AsyncMock,
+    ) as mock_embed:
         mock_embed.return_value = FAKE_EMBEDDING
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             yield c
@@ -96,7 +99,10 @@ async def auth_client(session: AsyncSession) -> AsyncGenerator[tuple[AsyncClient
     app.dependency_overrides[get_session] = _override_session
     app.dependency_overrides[get_current_user] = _override_user
 
-    with patch("app.services.embedding.embed_text", new_callable=AsyncMock) as mock_embed:
+    with patch(
+        "app.adapters.openai_embedding_provider.OpenAIEmbeddingProvider.embed_text",
+        new_callable=AsyncMock,
+    ) as mock_embed:
         mock_embed.return_value = FAKE_EMBEDDING
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
             yield c, user

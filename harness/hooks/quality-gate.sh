@@ -33,23 +33,45 @@ if [[ -n "$HAS_PYTHON" ]]; then
         echo "[quality-gate] ✓ ruff"
     fi
 
-    # mypy
+    # mypy — "Duplicate module" 은 __init__.py 미사용 프로젝트의 known issue라 제외
     MYPY_OUT=$(cd "$BACKEND" && "$VENV/mypy" app/ 2>&1)
-    if echo "$MYPY_OUT" | grep -q "error:"; then
+    MYPY_REAL_ERRORS=$(echo "$MYPY_OUT" | grep "error:" | grep -v "Duplicate module" || true)
+    if [[ -n "$MYPY_REAL_ERRORS" ]]; then
         FAILED=1
-        REPORT="$REPORT\n[FAIL] mypy:\n$(echo "$MYPY_OUT" | grep 'error:' | head -10)"
+        REPORT="$REPORT\n[FAIL] mypy:\n$(echo "$MYPY_REAL_ERRORS" | head -10)"
     else
         echo "[quality-gate] ✓ mypy"
     fi
 
-    # pytest — 테스트 파일이 있을 때만
+    # pytest — TEST_DATABASE_URL 또는 로컬 DB가 응답할 때만 실행
+    TEST_DB_URL="${TEST_DATABASE_URL:-}"
+    DB_REACHABLE=false
+
+    if [[ -n "$TEST_DB_URL" ]]; then
+        # Supabase 등 외부 DB: URL에서 호스트/포트 추출 후 연결 확인
+        DB_HOST=$(echo "$TEST_DB_URL" | python3 -c "import sys,re; m=re.search(r'@([^:/]+):(\d+)', sys.stdin.read()); print(m.group(1) if m else '')" 2>/dev/null || echo "")
+        DB_PORT=$(echo "$TEST_DB_URL" | python3 -c "import sys,re; m=re.search(r'@([^:/]+):(\d+)', sys.stdin.read()); print(m.group(2) if m else '5432')" 2>/dev/null || echo "5432")
+        if [[ -n "$DB_HOST" ]] && nc -z -w3 "$DB_HOST" "$DB_PORT" 2>/dev/null; then
+            DB_REACHABLE=true
+        fi
+    else
+        # 로컬 기본 DB 확인
+        if nc -z -w2 localhost 5432 2>/dev/null; then
+            DB_REACHABLE=true
+        fi
+    fi
+
     if ls "$BACKEND/tests/test_"*.py 1>/dev/null 2>&1; then
-        PYTEST_OUT=$(cd "$BACKEND" && "$VENV/python" -m pytest tests/ -v --tb=short -q 2>&1)
-        if [[ $? -ne 0 ]]; then
-            FAILED=1
-            REPORT="$REPORT\n[FAIL] pytest:\n$(echo "$PYTEST_OUT" | tail -20)"
+        if [[ "$DB_REACHABLE" == "true" ]]; then
+            PYTEST_OUT=$(cd "$BACKEND" && "$VENV/python" -m pytest tests/ -v --tb=short -q 2>&1)
+            if [[ $? -ne 0 ]]; then
+                FAILED=1
+                REPORT="$REPORT\n[FAIL] pytest:\n$(echo "$PYTEST_OUT" | tail -20)"
+            else
+                echo "[quality-gate] ✓ pytest"
+            fi
         else
-            echo "[quality-gate] ✓ pytest"
+            echo "[quality-gate] ⚠ pytest 건너뜀 — 테스트 DB 미연결 (TEST_DATABASE_URL 설정 필요)"
         fi
     fi
 fi

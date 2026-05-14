@@ -35,6 +35,7 @@ class StarService:
         self._repo = StarRepository(session)
         self._galaxy_repo = GalaxyRepository(session)
         self._view_repo = ViewEventRepository(session)
+        self._user_repo = UserRepository(session)
 
     async def get_stars_in_galaxy(self, user_id: uuid.UUID, galaxy_id: uuid.UUID) -> list[StarResponse]:
         """
@@ -149,6 +150,10 @@ class StarService:
         # 사용자가 익힌 우주 지도를 보존하기 위한 규칙이다.
         pos_x, pos_y = place_new_star(existing, vec)
 
+        # 우주가 공개 상태면 신규 항성도 바로 공개로 생성한다.
+        user = await self._user_repo.get_by_id(user_id)
+        is_public = user.is_universe_public if user else False
+
         star = await self._repo.create(
             user_id=user_id,
             galaxy_id=galaxy_id,
@@ -158,6 +163,7 @@ class StarService:
             embedding=vec,
             pos_x=pos_x,
             pos_y=pos_y,
+            is_public=is_public,
         )
         await self._session.commit()
         return await self._to_response(star)

@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import select, text
+from sqlalchemy import select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.star import Star
@@ -136,6 +136,7 @@ class StarRepository:
         embedding: list[float],
         pos_x: float,
         pos_y: float,
+        is_public: bool = False,
     ) -> Star:
         """
         Args:
@@ -147,6 +148,7 @@ class StarRepository:
             embedding: title과 content로 생성한 1536차원 임베딩 벡터.
             pos_x: Galaxy 맵에서 사용할 고정 x 좌표.
             pos_y: Galaxy 맵에서 사용할 고정 y 좌표.
+            is_public: 우주가 공개 상태일 때 True로 생성된다.
         """
         star = Star(
             user_id=user_id,
@@ -157,6 +159,7 @@ class StarRepository:
             embedding=embedding,
             pos_x=pos_x,
             pos_y=pos_y,
+            is_public=is_public,
         )
         self._session.add(star)
         await self._session.flush()
@@ -192,6 +195,13 @@ class StarRepository:
         await self._session.flush()
         await self._session.refresh(star)
         return star
+
+    async def set_all_public_for_user(self, user_id: uuid.UUID, is_public: bool) -> None:
+        """유저의 모든 항성 is_public을 일괄 변경한다."""
+        await self._session.execute(
+            update(Star).where(Star.user_id == user_id).values(is_public=is_public)
+        )
+        await self._session.flush()
 
     async def update_visibility(self, star: Star, is_public: bool) -> Star:
         """

@@ -34,7 +34,7 @@ if settings.app_env == "development":
         context: object,
         executemany: bool,
     ) -> None:
-        getattr(conn, "info")["_t"] = time.perf_counter()
+        conn.info["_t"] = time.perf_counter()
 
     @event.listens_for(engine.sync_engine, "after_cursor_execute")
     def _after_execute(
@@ -45,7 +45,7 @@ if settings.app_env == "development":
         context: object,
         executemany: bool,
     ) -> None:
-        info = getattr(conn, "info")
+        info = conn.info
         elapsed_ms = (time.perf_counter() - info.pop("_t", time.perf_counter())) * 1000
         log = request_query_log.get(None)
         if log is not None:

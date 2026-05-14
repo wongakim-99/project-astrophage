@@ -3,6 +3,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.adapters.openai_embedding_provider import OpenAIEmbeddingProvider
 from app.application.star_use_cases import StarUseCaseError, StarUseCases
 from app.core.database import get_session
 from app.domain.lifecycle import compute_lifecycle
@@ -10,6 +11,10 @@ from app.repositories.view_event_repo import ViewEventRepository
 from app.schemas.star import StarPublicResponse
 
 router = APIRouter(tags=["explore"])
+
+
+def _star_use_cases(session: AsyncSession) -> StarUseCases:
+    return StarUseCases(session, embedding_provider=OpenAIEmbeddingProvider())
 
 
 @router.get("/explore", response_model=list[StarPublicResponse])
@@ -27,7 +32,7 @@ async def list_public_stars(
         limit: 한 번에 반환할 공개 항성 최대 개수. 1~100 사이만 허용한다.
         offset: 페이지네이션을 위해 앞에서 건너뛸 공개 항성 개수.
     """
-    use_cases = StarUseCases(session)
+    use_cases = _star_use_cases(session)
     pairs = await use_cases.list_public(limit=limit, offset=offset)
     if not pairs:
         return []
@@ -70,7 +75,7 @@ async def get_public_star(
         slug: 공개 URL에서 받은 사용자 범위의 항성 slug.
         session: 요청 범위에서 공유하는 비동기 DB 세션.
     """
-    use_cases = StarUseCases(session)
+    use_cases = _star_use_cases(session)
     view_repo = ViewEventRepository(session)
     try:
         star, uname = await use_cases.get_public_star(username, slug)

@@ -3,6 +3,7 @@ import uuid
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.lifecycle import compute_lifecycle
+from app.domain.star_placement import place_new_star
 from app.domain.star_rules import (
     direct_view_energy,
     embedding_source,
@@ -10,13 +11,12 @@ from app.domain.star_rules import (
     nova_energy,
 )
 from app.models.star import Star
+from app.ports.embedding_provider import EmbeddingProvider
 from app.repositories.galaxy_repo import GalaxyRepository
 from app.repositories.star_repo import StarRepository
 from app.repositories.user_repo import UserRepository
 from app.repositories.view_event_repo import ViewEventRepository
 from app.schemas.star import SimilarStarPreview, StarResponse
-from app.services import embedding as embed_svc
-from app.services.umap_service import place_new_star
 
 # 유효 조회에서 Nova 에너지를 받을 같은 은하 내 이웃 항성 수.
 NOVA_K = 5
@@ -31,7 +31,7 @@ class StarUseCaseError(Exception):
 class StarUseCases:
     """항성 유스케이스의 트랜잭션 흐름과 외부 포트 호출을 조율한다."""
 
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(self, session: AsyncSession, embedding_provider: EmbeddingProvider) -> None:
         """
         Args:
             session: 항성/은하/이벤트 조회와 commit에 사용할 요청 범위 비동기 DB 세션.
@@ -41,6 +41,7 @@ class StarUseCases:
         self._galaxy_repo = GalaxyRepository(session)
         self._view_repo = ViewEventRepository(session)
         self._user_repo = UserRepository(session)
+        self._embedding_provider = embedding_provider
 
     async def get_stars_in_galaxy(self, user_id: uuid.UUID, galaxy_id: uuid.UUID) -> list[StarResponse]:
         """
@@ -113,7 +114,7 @@ class StarUseCases:
             content: 임베딩 기준 텍스트에 포함할 임시 항성 본문.
         """
         await self._assert_galaxy_owned(user_id, galaxy_id)
-        vec = await embed_svc.embed_text(embedding_source(title, content))
+        vec = await self._embedding_provider.embed_text(embedding_source(title, content))
         similar = await self._repo.find_similar_in_galaxy(galaxy_id, vec, k=5)
         return [
             SimilarStarPreview(id=s.id, title=s.title, similarity=round(sim, 3))
@@ -146,7 +147,7 @@ class StarUseCases:
 
         # 임베딩은 명시적인 생성/수정 흐름에서만 만든다. GET 엔드포인트는
         # 지연과 API 비용을 피하기 위해 저장된 벡터를 재사용해야 한다.
-        vec = await embed_svc.embed_text(embedding_source(title, content))
+        vec = await self._embedding_provider.embed_text(embedding_source(title, content))
 
         existing = await self._repo.list_by_galaxy(galaxy_id)
         # 새 항성은 유사한 기존 항성 근처에 배치하되, 기존 좌표는 움직이지 않는다.
@@ -199,7 +200,9 @@ class StarUseCases:
             new_title = title or star.title
             new_content = content if content is not None else star.content
             # 의미 콘텐츠가 바뀔 때만 다시 임베딩한다. 임베딩이 바뀌어도 좌표는 고정한다.
-            new_embedding = await embed_svc.embed_text(embedding_source(new_title, new_content))
+            new_embedding = await self._embedding_provider.embed_text(
+                embedding_source(new_title, new_content)
+            )
 
         star = await self._repo.update(
             star,

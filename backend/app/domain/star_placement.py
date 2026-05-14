@@ -1,29 +1,30 @@
 import random
+from typing import Protocol
 
 import numpy as np
 
-from app.models.star import Star
 
-_JITTER_SCALE = 6.0  # 새 항성에 적용할 좌표 단위 랜덤 오프셋 (프론트 COORD_SCALE=4 기준 ±24 화면단위)
+class PlacedStar(Protocol):
+    """신규 항성 배치에 필요한 기존 항성 필드."""
+
+    embedding: list[float]
+    pos_x: float
+    pos_y: float
+
+
+_JITTER_SCALE = 6.0
 
 
 def place_new_star(
-    existing_stars: list[Star],
+    existing_stars: list[PlacedStar],
     new_embedding: list[float],
     k: int = 3,
 ) -> tuple[float, float]:
     """
-    기존 항성 좌표를 다시 계산하지 않고 새 항성의 (x, y) 위치를 정한다.
+    기존 좌표는 고정한 채 신규 항성의 좌표만 계산한다.
 
-    전략:
-    - 기존 항성이 0개면 원점에 배치
-    - 기존 항성이 1개면 해당 항성 기준 (1.0, 0.0)에 배치
-    - 기존 항성이 2개 이상이면 유사도 상위 k개의 가중 중심 + jitter 적용
-
-    Args:
-        existing_stars: 같은 Galaxy에 이미 저장된 기존 Star 목록.
-        new_embedding: 새 Star의 title/content에서 만든 임베딩 벡터.
-        k: 좌표 가중 중심 계산에 사용할 유사 이웃 최대 개수.
+    기존 항성이 없으면 원점, 1개면 오른쪽 근처, 2개 이상이면 유사도 상위 k개의
+    가중 중심에 작은 jitter를 더한다.
     """
     if not existing_stars:
         return 0.0, 0.0
@@ -37,7 +38,7 @@ def place_new_star(
     if new_norm == 0:
         return _jittered(0.0, 0.0)
 
-    similarities: list[tuple[float, Star]] = []
+    similarities: list[tuple[float, PlacedStar]] = []
     for star in existing_stars:
         existing_vec = np.array(star.embedding, dtype=np.float32)
         norm = np.linalg.norm(existing_vec)
@@ -47,7 +48,6 @@ def place_new_star(
         similarities.append((cosine_sim, star))
 
     similarities.sort(key=lambda t: t[0], reverse=True)
-    # 의미적으로 가장 가까운 이웃만 배치에 사용한다. 기존 좌표는 anchor로 읽기만 하고 쓰지 않는다.
     top_k = similarities[:k]
 
     if not top_k:
@@ -65,13 +65,6 @@ def place_new_star(
 
 
 def _jittered(x: float, y: float) -> tuple[float, float]:
-    """
-    의미적으로 겹치는 이웃 항성도 클릭 가능하도록 작은 오프셋을 더한다.
-
-    Args:
-        x: 기준 x 좌표.
-        y: 기준 y 좌표.
-    """
     return (
         x + random.uniform(-_JITTER_SCALE, _JITTER_SCALE),
         y + random.uniform(-_JITTER_SCALE, _JITTER_SCALE),

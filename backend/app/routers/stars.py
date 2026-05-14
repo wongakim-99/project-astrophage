@@ -4,6 +4,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.adapters.openai_embedding_provider import OpenAIEmbeddingProvider
 from app.application.star_use_cases import StarUseCaseError, StarUseCases
 from app.core.database import get_session
 from app.core.dependencies import CurrentUser
@@ -21,6 +22,10 @@ from app.schemas.star import (
 router = APIRouter(prefix="/stars", tags=["stars"])
 
 
+def _star_use_cases(session: AsyncSession) -> StarUseCases:
+    return StarUseCases(session, embedding_provider=OpenAIEmbeddingProvider())
+
+
 @router.get("/galaxy/{galaxy_id}", response_model=list[StarResponse])
 async def list_stars_in_galaxy(
     galaxy_id: uuid.UUID,
@@ -35,7 +40,7 @@ async def list_stars_in_galaxy(
         current_user: Bearer access token에서 확인한 현재 사용자.
         session: 요청 범위에서 공유하는 비동기 DB 세션.
     """
-    use_cases = StarUseCases(session)
+    use_cases = _star_use_cases(session)
     try:
         return await use_cases.get_stars_in_galaxy(current_user.id, galaxy_id)
     except StarUseCaseError as e:
@@ -56,7 +61,7 @@ async def preview_similar(
         current_user: Bearer access token에서 확인한 현재 사용자.
         session: 요청 범위에서 공유하는 비동기 DB 세션.
     """
-    use_cases = StarUseCases(session)
+    use_cases = _star_use_cases(session)
     try:
         return await use_cases.preview_similar(current_user.id, body.galaxy_id, body.title, body.content)
     except StarUseCaseError as e:
@@ -77,7 +82,7 @@ async def create_star(
         current_user: Bearer access token에서 확인한 현재 사용자.
         session: 요청 범위에서 공유하는 비동기 DB 세션.
     """
-    use_cases = StarUseCases(session)
+    use_cases = _star_use_cases(session)
     try:
         return await use_cases.create_star(
             user_id=current_user.id,
@@ -106,7 +111,7 @@ async def update_star(
         current_user: Bearer access token에서 확인한 현재 사용자.
         session: 요청 범위에서 공유하는 비동기 DB 세션.
     """
-    use_cases = StarUseCases(session)
+    use_cases = _star_use_cases(session)
     try:
         return await use_cases.update_star(
             user_id=current_user.id,
@@ -133,7 +138,7 @@ async def delete_star(
         current_user: Bearer access token에서 확인한 현재 사용자.
         session: 요청 범위에서 공유하는 비동기 DB 세션.
     """
-    use_cases = StarUseCases(session)
+    use_cases = _star_use_cases(session)
     try:
         await use_cases.delete_star(current_user.id, star_id)
     except StarUseCaseError as e:
@@ -157,7 +162,7 @@ async def record_view(
         current_user: Bearer access token에서 확인한 현재 사용자.
         session: 요청 범위에서 공유하는 비동기 DB 세션.
     """
-    use_cases = StarUseCases(session)
+    use_cases = _star_use_cases(session)
     try:
         return await use_cases.record_view(
             user_id=current_user.id,
@@ -185,7 +190,7 @@ async def update_visibility(
         current_user: Bearer access token에서 확인한 현재 사용자.
         session: 요청 범위에서 공유하는 비동기 DB 세션.
     """
-    use_cases = StarUseCases(session)
+    use_cases = _star_use_cases(session)
     try:
         return await use_cases.set_visibility(current_user.id, star_id, body.is_public)
     except StarUseCaseError as e:

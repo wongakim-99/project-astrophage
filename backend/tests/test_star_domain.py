@@ -1,5 +1,6 @@
 """HTTP/DB와 분리된 항성 도메인 규칙 테스트."""
 
+from app.domain.star_placement import place_new_star
 from app.domain.star_rules import (
     NOVA_ENERGY_RATIO,
     VALID_DWELL_SECONDS,
@@ -44,3 +45,7 @@ def test_edit_has_double_lifecycle_energy_without_dwell_time() -> None:
 
 def test_nova_energy_is_limited_ratio_of_direct_energy() -> None:
     assert nova_energy(2.0) == 2.0 * NOVA_ENERGY_RATIO
+
+
+def test_new_star_without_existing_neighbors_starts_at_origin() -> None:
+    assert place_new_star(existing_stars=[], new_embedding=[0.1, 0.2]) == (0.0, 0.0)

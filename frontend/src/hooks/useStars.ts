@@ -81,6 +81,24 @@ export function useUpdateStar() {
   });
 }
 
+interface ToggleVisibilityParams {
+  id: string;
+  galaxy_id: string;
+  is_public: boolean;
+}
+
+export function useToggleStarVisibility() {
+  const queryClient = useQueryClient();
+  return useMutation<StarResponse, Error, ToggleVisibilityParams>({
+    mutationFn: ({ id, is_public }) =>
+      api.patch(`/stars/${id}/visibility`, { is_public }).then((r) => r.data),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['stars', String(data.galaxy_id)] });
+      queryClient.invalidateQueries({ queryKey: ['public-stars'] });
+    },
+  });
+}
+
 interface DeleteStarParams {
   id: string;
   galaxy_id: string;

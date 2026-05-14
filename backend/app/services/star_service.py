@@ -46,7 +46,35 @@ class StarService:
         """
         await self._assert_galaxy_owned(user_id, galaxy_id)
         stars = await self._repo.list_by_galaxy(galaxy_id)
-        return [await self._to_response(s) for s in stars]
+        if not stars:
+            return []
+
+        star_ids = [s.id for s in stars]
+        recent_map = await self._view_repo.list_recent_by_stars(star_ids, days=30)
+        last_valid_map = await self._view_repo.get_last_valids(star_ids)
+
+        results: list[StarResponse] = []
+        for star in stars:
+            state, energy = compute_lifecycle(
+                recent_map.get(star.id, []),
+                last_valid_map.get(star.id),
+            )
+            results.append(StarResponse(
+                id=star.id,
+                user_id=star.user_id,
+                galaxy_id=star.galaxy_id,
+                title=star.title,
+                slug=star.slug,
+                content=star.content,
+                pos_x=star.pos_x,
+                pos_y=star.pos_y,
+                is_public=star.is_public,
+                lifecycle_state=state,
+                energy_score=energy,
+                created_at=star.created_at,
+                updated_at=star.updated_at,
+            ))
+        return results
 
     async def get_public_star(self, username: str, slug: str) -> tuple[Star, str]:
         """

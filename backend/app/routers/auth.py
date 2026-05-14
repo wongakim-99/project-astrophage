@@ -3,10 +3,10 @@ from typing import Annotated
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.application.auth_use_cases import AuthUseCaseError, AuthUseCases
 from app.core.database import get_session
 from app.core.dependencies import CurrentUser
 from app.core.security import decode_token
-from app.repositories.star_repo import StarRepository
 from app.schemas.auth import (
     LoginRequest,
     RegisterRequest,
@@ -15,7 +15,6 @@ from app.schemas.auth import (
     UserSettingsUpdate,
 )
 from app.schemas.common import MessageResponse
-from app.services.auth_service import AuthError, AuthService
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -36,31 +35,17 @@ async def register(
         response: refresh token 쿠키를 설정할 FastAPI 응답 객체.
         session: 요청 범위에서 공유하는 비동기 DB 세션.
     """
-    service = AuthService(session)
+    use_cases = AuthUseCases(session)
     try:
-        _, tokens, refresh = await _register_with_refresh(service, body)
-    except AuthError as e:
+        tokens, refresh = await use_cases.register(
+            username=body.username,
+            email=body.email,
+            password=body.password,
+        )
+    except AuthUseCaseError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e)) from e
     _set_refresh_cookie(response, refresh)
     return tokens
-
-
-async def _register_with_refresh(
-    service: AuthService, body: RegisterRequest
-) -> tuple[UserResponse, TokenResponse, str]:
-    """
-    AuthService.register 응답에 라우터 전용 refresh token을 붙인다.
-
-    Args:
-        service: 회원가입 비즈니스 규칙을 실행할 인증 서비스.
-        body: username, email, password가 담긴 회원가입 요청 본문.
-    """
-    user, tokens = await service.register(
-        username=body.username, email=body.email, password=body.password
-    )
-    from app.core.security import create_refresh_token
-    refresh = create_refresh_token(user.id)
-    return user, tokens, refresh
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -77,10 +62,10 @@ async def login(
         response: refresh token 쿠키를 설정할 FastAPI 응답 객체.
         session: 요청 범위에서 공유하는 비동기 DB 세션.
     """
-    service = AuthService(session)
+    use_cases = AuthUseCases(session)
     try:
-        _, tokens, refresh = await service.login(email=body.email, password=body.password)
-    except AuthError as e:
+        tokens, refresh = await use_cases.login(email=body.email, password=body.password)
+    except AuthUseCaseError as e:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e)) from e
     _set_refresh_cookie(response, refresh)
     return tokens
@@ -105,10 +90,10 @@ async def refresh_token(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token") from e
 
-    service = AuthService(session)
+    use_cases = AuthUseCases(session)
     try:
-        return await service.refresh(user_id)
-    except AuthError as e:
+        return await use_cases.refresh(user_id)
+    except AuthUseCaseError as e:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e)) from e
 
 
@@ -142,17 +127,10 @@ async def update_me_settings(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> UserResponse:
     """우주 탐색 노출 여부를 사용자 단위로 저장한다. 공개로 전환 시 기존 항성 전부 공개."""
-    current_user.is_universe_public = body.is_universe_public
-    if body.is_universe_public:
-        star_repo = StarRepository(session)
-        await star_repo.set_all_public_for_user(current_user.id, is_public=True)
-    await session.commit()
-    await session.refresh(current_user)
-    return UserResponse(
-        id=str(current_user.id),
-        username=current_user.username,
-        email=current_user.email,
-        is_universe_public=current_user.is_universe_public,
+    use_cases = AuthUseCases(session)
+    return await use_cases.update_universe_visibility(
+        current_user=current_user,
+        is_universe_public=body.is_universe_public,
     )
 
 

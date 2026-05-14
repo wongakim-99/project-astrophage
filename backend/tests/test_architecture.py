@@ -50,3 +50,19 @@ def test_galaxy_domain_uses_bounded_context_directory() -> None:
     galaxy_domain = domain_root / "galaxy"
 
     assert (galaxy_domain / "rules.py").exists()
+
+
+def test_auth_router_depends_on_application_use_cases() -> None:
+    source_path = PROJECT_ROOT / "app" / "routers" / "auth.py"
+    source = source_path.read_text(encoding="utf-8")
+
+    assert "app.application.auth_use_cases" in source
+    assert "app.services.auth_service" not in source
+
+
+def test_auth_use_cases_do_not_depend_on_services_layer() -> None:
+    source_path = PROJECT_ROOT / "app" / "application" / "auth_use_cases.py"
+    source = source_path.read_text(encoding="utf-8")
+
+    assert "app.services." not in source
+    assert "from app.services" not in source

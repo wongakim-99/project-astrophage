@@ -7,7 +7,7 @@ from app.models.user import User
 
 
 class UserRepository:
-    """사용자 DB 접근 전용 클래스. 비즈니스 규칙은 AuthService에 둔다."""
+    """사용자 DB 접근 전용 클래스. 비즈니스 규칙은 AuthUseCases에 둔다."""
 
     def __init__(self, session: AsyncSession) -> None:
         """

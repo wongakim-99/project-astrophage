@@ -3,130 +3,80 @@
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+APP_ROOT = PROJECT_ROOT / "app"
+API_ROOT = APP_ROOT / "api"
 
 
-def test_star_routers_depend_on_application_use_cases() -> None:
-    router_sources = [
-        PROJECT_ROOT / "app" / "routers" / "stars.py",
-        PROJECT_ROOT / "app" / "routers" / "explore.py",
-    ]
-
-    for source_path in router_sources:
-        source = source_path.read_text(encoding="utf-8")
-        assert "app.application.star_use_cases" in source
-        assert "app.services.star_service" not in source
+def _read(path: Path) -> str:
+    return path.read_text(encoding="utf-8")
 
 
-def test_star_use_cases_do_not_depend_on_services_layer() -> None:
-    source_path = PROJECT_ROOT / "app" / "application" / "star_use_cases.py"
-    source = source_path.read_text(encoding="utf-8")
-
-    assert "app.services." not in source
-    assert "from app.services" not in source
+def _python_files(path: Path) -> list[Path]:
+    if not path.exists():
+        return []
+    return [p for p in path.rglob("*.py") if "__pycache__" not in p.parts]
 
 
-def test_star_domain_uses_bounded_context_directory() -> None:
-    domain_root = PROJECT_ROOT / "app" / "domain"
-    star_domain = domain_root / "star"
+def test_feature_contexts_use_pawpong_style_layers() -> None:
+    for context in ("auth", "galaxy", "star"):
+        context_root = API_ROOT / context
+        assert context_root.exists()
+        assert (context_root / "application").exists()
+        assert (context_root / "dto").exists()
+        assert (context_root / "infrastructure").exists()
 
-    assert (star_domain / "lifecycle.py").exists()
-    assert (star_domain / "placement.py").exists()
-    assert (star_domain / "rules.py").exists()
-    assert not (domain_root / "lifecycle.py").exists()
-    assert not (domain_root / "star_placement.py").exists()
-    assert not (domain_root / "star_rules.py").exists()
-
-
-def test_galaxy_router_depends_on_application_use_cases() -> None:
-    source_path = PROJECT_ROOT / "app" / "routers" / "galaxies.py"
-    source = source_path.read_text(encoding="utf-8")
-
-    assert "app.application.galaxy_use_cases" in source
-    assert "app.services.galaxy_service" not in source
+    assert (API_ROOT / "star" / "domain" / "lifecycle.py").exists()
+    assert (API_ROOT / "star" / "domain" / "placement.py").exists()
+    assert (API_ROOT / "star" / "domain" / "rules.py").exists()
+    assert (API_ROOT / "galaxy" / "domain" / "rules.py").exists()
 
 
-def test_galaxy_domain_uses_bounded_context_directory() -> None:
-    domain_root = PROJECT_ROOT / "app" / "domain"
-    galaxy_domain = domain_root / "galaxy"
-
-    assert (galaxy_domain / "rules.py").exists()
+def test_flat_legacy_layers_have_no_python_modules() -> None:
+    for layer in ("adapters", "application", "core", "domain", "models", "ports", "routers", "schemas"):
+        assert not _python_files(APP_ROOT / layer)
 
 
-def test_auth_router_depends_on_application_use_cases() -> None:
-    source_path = PROJECT_ROOT / "app" / "routers" / "auth.py"
-    source = source_path.read_text(encoding="utf-8")
+def test_controllers_depend_on_context_application_use_cases() -> None:
+    expectations = {
+        API_ROOT / "auth" / "auth_controller.py": "app.api.auth.application.use_cases",
+        API_ROOT / "galaxy" / "galaxy_controller.py": "app.api.galaxy.application.use_cases",
+        API_ROOT / "star" / "star_controller.py": "app.api.star.application.use_cases",
+        API_ROOT / "star" / "explore_controller.py": "app.api.star.application.use_cases",
+    }
 
-    assert "app.application.auth_use_cases" in source
-    assert "app.services.auth_service" not in source
-
-
-def test_auth_use_cases_do_not_depend_on_services_layer() -> None:
-    source_path = PROJECT_ROOT / "app" / "application" / "auth_use_cases.py"
-    source = source_path.read_text(encoding="utf-8")
-
-    assert "app.services." not in source
-    assert "from app.services" not in source
-
-
-def test_adapters_do_not_depend_on_services_layer() -> None:
-    adapter_root = PROJECT_ROOT / "app" / "adapters"
-
-    for source_path in adapter_root.glob("*.py"):
-        source = source_path.read_text(encoding="utf-8")
+    for source_path, expected_import in expectations.items():
+        source = _read(source_path)
+        assert expected_import in source
         assert "app.services." not in source
-        assert "from app.services" not in source
 
 
-def test_services_layer_has_no_python_modules() -> None:
-    services_root = PROJECT_ROOT / "app" / "services"
-
-    assert not list(services_root.glob("*.py"))
-
-
-def test_application_use_cases_do_not_depend_on_repository_implementations() -> None:
-    application_root = PROJECT_ROOT / "app" / "application"
-
-    for source_path in application_root.glob("*_use_cases.py"):
-        source = source_path.read_text(encoding="utf-8")
+def test_application_use_cases_depend_on_ports_not_infrastructure() -> None:
+    for source_path in API_ROOT.glob("*/application/use_cases.py"):
+        source = _read(source_path)
+        assert "sqlalchemy" not in source
+        assert ".infrastructure." not in source
         assert "app.repositories." not in source
         assert "from app.repositories" not in source
-        assert "app.adapters.persistence" not in source
-        assert "from app.adapters.persistence" not in source
 
 
-def test_application_use_cases_do_not_depend_on_sqlalchemy() -> None:
-    application_root = PROJECT_ROOT / "app" / "application"
-
-    for source_path in application_root.glob("*_use_cases.py"):
-        source = source_path.read_text(encoding="utf-8")
-        assert "sqlalchemy" not in source
-
-
-def test_application_use_cases_do_not_depend_on_http_schemas() -> None:
-    application_root = PROJECT_ROOT / "app" / "application"
-
-    for source_path in application_root.glob("*_use_cases.py"):
-        source = source_path.read_text(encoding="utf-8")
-        assert "app.schemas." not in source
-        assert "from app.schemas" not in source
+def test_application_use_cases_do_not_depend_on_http_dto() -> None:
+    for source_path in API_ROOT.glob("*/application/use_cases.py"):
+        source = _read(source_path)
+        assert ".dto.auth" not in source
+        assert ".dto.galaxy" not in source
+        assert ".dto.star" not in source
 
 
-def test_routers_do_not_construct_adapters_directly() -> None:
-    router_root = PROJECT_ROOT / "app" / "routers"
-
-    for source_path in router_root.glob("*.py"):
-        source = source_path.read_text(encoding="utf-8")
-        assert "app.adapters." not in source
-        assert "from app.adapters" not in source
+def test_controllers_do_not_construct_infrastructure_directly() -> None:
+    for source_path in API_ROOT.glob("*/*_controller.py"):
+        source = _read(source_path)
+        assert ".infrastructure." not in source
 
 
-def test_repositories_are_persistence_adapters() -> None:
-    repo_root = PROJECT_ROOT / "app" / "repositories"
-    persistence_root = PROJECT_ROOT / "app" / "adapters" / "persistence"
-
-    assert not list(repo_root.glob("*.py"))
-    assert (persistence_root / "star_repository.py").exists()
-    assert (persistence_root / "galaxy_repository.py").exists()
-    assert (persistence_root / "user_repository.py").exists()
-    assert (persistence_root / "view_event_repository.py").exists()
-    assert (persistence_root / "unit_of_work.py").exists()
+def test_repositories_are_context_infrastructure_adapters() -> None:
+    assert not _python_files(APP_ROOT / "repositories")
+    assert (API_ROOT / "auth" / "infrastructure" / "user_repository.py").exists()
+    assert (API_ROOT / "galaxy" / "infrastructure" / "galaxy_repository.py").exists()
+    assert (API_ROOT / "star" / "infrastructure" / "star_repository.py").exists()
+    assert (API_ROOT / "star" / "infrastructure" / "view_event_repository.py").exists()
+    assert (APP_ROOT / "common" / "infrastructure" / "persistence" / "unit_of_work.py").exists()

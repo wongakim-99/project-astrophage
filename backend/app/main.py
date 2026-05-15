@@ -7,9 +7,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
-from app.core.config import settings
-from app.core.database import request_query_log
-from app.routers import auth, explore, galaxies, stars
+from app.api.auth import auth_controller
+from app.api.galaxy import galaxy_controller
+from app.api.star import explore_controller, star_controller
+from app.common.config import settings
+from app.common.infrastructure.persistence.database import request_query_log
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -81,11 +83,11 @@ app.add_middleware(
 if settings.app_env == "development":
     app.add_middleware(TimingMiddleware)
 
-app.include_router(auth.router)
-app.include_router(galaxies.router)
-app.include_router(stars.router)
+app.include_router(auth_controller.router)
+app.include_router(galaxy_controller.router)
+app.include_router(star_controller.router)
 # /{username}/stars/{slug}가 고정 경로를 가리지 않도록 explore 라우터는 마지막에 등록한다.
-app.include_router(explore.router)
+app.include_router(explore_controller.router)
 
 
 @app.get("/health")

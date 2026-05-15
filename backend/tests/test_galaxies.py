@@ -2,7 +2,7 @@
 
 from httpx import AsyncClient
 
-from app.models.user import User
+from app.api.auth.infrastructure.user_model import User
 
 
 async def test_create_galaxy(auth_client: tuple[AsyncClient, User]) -> None:

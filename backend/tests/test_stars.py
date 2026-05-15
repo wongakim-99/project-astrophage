@@ -4,8 +4,8 @@ from typing import Any, cast
 
 from httpx import AsyncClient
 
-from app.domain.star.lifecycle import DAYS_DARK_MATTER_START, compute_lifecycle
-from app.models.user import User
+from app.api.auth.infrastructure.user_model import User
+from app.api.star.domain.lifecycle import DAYS_DARK_MATTER_START, compute_lifecycle
 
 # ── 헬퍼 ──────────────────────────────────────────────────────────────────────
 

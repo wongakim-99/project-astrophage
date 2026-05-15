@@ -1,6 +1,6 @@
 """HTTP/DB와 분리된 은하 도메인 규칙 테스트."""
 
-from app.domain.galaxy.rules import GALAXY_COLOR_PALETTE, default_galaxy_color
+from app.api.galaxy.domain.rules import GALAXY_COLOR_PALETTE, default_galaxy_color
 
 
 def test_default_galaxy_color_cycles_through_palette() -> None:

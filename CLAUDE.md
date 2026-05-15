@@ -40,18 +40,41 @@ AI 에이전트가 이 프로젝트에서 작업하기 전에 반드시 읽어�
 
 ## 3. 아키텍처 규칙
 
-### 레이어드 아키텍처 (헥사고날 DDD 아님)
-개인 프로젝트 규모에 맞게 심플한 3계층을 유지한다.
+### 헥사고날 DDD — 기능별 컨텍스트 구조
+각 도메인(auth / galaxy / star)은 독립 컨텍스트로 분리되며, 공통 인프라는 `common/`에 둔다.
 
 ```
-Router (HTTP 진입점)
-  └── Service (비즈니스 로직)
-        └── Repository (DB 접근)
+backend/app/
+├── common/                          # 공통 인프라 (cross-cutting)
+│   ├── dependencies.py              # Composition Root — DI 조립 유일 위치
+│   ├── application/ports/unit_of_work.py
+│   └── infrastructure/persistence/  # SQLAlchemy 엔진/세션/UoW 어댑터
+│
+└── api/<context>/                   # auth / galaxy / star
+    ├── <context>_controller.py      # HTTP 진입점 (Router)
+    ├── dto/                         # HTTP 요청/응답 Pydantic 스키마
+    ├── application/
+    │   ├── use_cases.py             # 비즈니스 로직 (포트에만 의존)
+    │   ├── dto.py                   # 애플리케이션 내부 DTO (dataclass)
+    │   └── ports/                   # 추상 포트 (Protocol)
+    ├── infrastructure/              # 포트 구현 어댑터 (SQLAlchemy, OpenAI)
+    └── domain/                      # 순수 도메인 규칙 (star 컨텍스트만)
 ```
 
-- **Router**: 요청 파싱, 응답 직렬화만. 비즈니스 로직 작성 금지.
-- **Service**: 모든 비즈니스 로직. DB와 직접 통신 금지, 반드시 Repository 경유.
-- **Repository**: SQLAlchemy 쿼리만. 비즈니스 판단 금지.
+계층 간 의존 방향 (단방향):
+
+```
+Controller → UseCase → Port ← Infrastructure Adapter
+                ↓
+            Domain (rules / lifecycle / placement)
+```
+
+- **Controller**: 요청 파싱·응답 직렬화만. `StarUseCaseError` → HTTP 상태 코드 변환. 인프라 직접 참조 금지.
+- **UseCase**: 모든 비즈니스 로직. SQLAlchemy·HTTP DTO 의존 금지, 포트(Protocol)만 사용.
+- **Port**: `Protocol` 클래스로 선언. 구현체는 `infrastructure/`에만 존재.
+- **Infrastructure**: SQLAlchemy 쿼리·외부 API 호출. 비즈니스 판단 금지.
+- **Domain**: 외부 의존 없는 순수 함수/dataclass. 임베딩·DB 호출 금지.
+- **Composition Root** (`common/dependencies.py`): 포트↔어댑터 연결 유일 위치. 여기서만 `Infrastructure` 클래스를 생성한다.
 
 ### 임베딩 호출 규칙 ★ 중요
 - 임베딩 계산은 **항성 생성 / 수정 시에만** 호출한다.

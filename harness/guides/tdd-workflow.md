@@ -60,13 +60,27 @@ async def test_public(client):
 테스트가 RED 상태일 때 구현은 아래 순서로:
 
 ```
-1. app/models/       — 모델 변경이 필요한 경우만
-2. app/repositories/ — DB 쿼리
-3. app/services/     — 비즈니스 로직
-4. app/routers/      — HTTP 진입점 (마지막)
+1. app/api/<context>/infrastructure/<context>_model.py
+   — ORM 모델 변경이 필요한 경우만 (Alembic 마이그레이션도 함께)
+
+2. app/api/<context>/application/ports/<port>.py
+   — 포트(Protocol) 정의 또는 메서드 추가
+
+3. app/api/<context>/infrastructure/<context>_repository.py
+   — 포트 구현 어댑터 (SQLAlchemy 쿼리)
+
+4. app/api/<context>/domain/           (star 컨텍스트만)
+   — 순수 도메인 규칙/함수 추가
+
+5. app/api/<context>/application/use_cases.py
+   — 비즈니스 로직 (포트에만 의존, SQLAlchemy·HTTP DTO 금지)
+
+6. app/api/<context>/<context>_controller.py
+   — HTTP 진입점 (마지막, UseCase 호출만)
 ```
 
-라우터를 먼저 만들고 서비스를 채우는 방식 금지.
+컨트롤러를 먼저 만들고 유스케이스를 채우는 방식 금지.
+`test_architecture.py`가 계층 경계 위반을 회귀 테스트로 잡는다.
 
 ---
 

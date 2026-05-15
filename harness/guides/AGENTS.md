@@ -34,9 +34,10 @@ CLAUDE.md의 핵심 규칙 중 **에이전트가 자주 위반하는 항목**만
 
 ## 임베딩 규칙
 
-- `embed_text()` 호출 가능 위치: `app/services/` 내 항성 생성/수정 서비스만
-- GET 핸들러 (`app/routers/` 내 `@router.get`) 에서 호출 금지
-- 테스트에서 실제 OpenAI API 호출 금지 → conftest.py 픽스처가 mock 주입
+- `embed_text()` 호출 가능 위치: `app/api/star/application/use_cases.py` 내 항성 생성/수정 유스케이스만
+- GET 핸들러 (`app/api/star/star_controller.py`, `explore_controller.py` 내 `@router.get`) 에서 호출 금지
+  - 예외: `POST /stars/preview-similar` — 의도적으로 임베딩을 호출하는 유일한 비-mutating 엔드포인트
+- 테스트에서 실제 OpenAI API 호출 금지 → `conftest.py`의 `client` / `auth_client` 픽스처가 mock 주입
 
 ---
 

@@ -81,3 +81,25 @@ def test_services_layer_has_no_python_modules() -> None:
     services_root = PROJECT_ROOT / "app" / "services"
 
     assert not list(services_root.glob("*.py"))
+
+
+def test_application_use_cases_do_not_depend_on_repository_implementations() -> None:
+    application_root = PROJECT_ROOT / "app" / "application"
+
+    for source_path in application_root.glob("*_use_cases.py"):
+        source = source_path.read_text(encoding="utf-8")
+        assert "app.repositories." not in source
+        assert "from app.repositories" not in source
+        assert "app.adapters.persistence" not in source
+        assert "from app.adapters.persistence" not in source
+
+
+def test_repositories_are_persistence_adapters() -> None:
+    repo_root = PROJECT_ROOT / "app" / "repositories"
+    persistence_root = PROJECT_ROOT / "app" / "adapters" / "persistence"
+
+    assert not list(repo_root.glob("*.py"))
+    assert (persistence_root / "star_repository.py").exists()
+    assert (persistence_root / "galaxy_repository.py").exists()
+    assert (persistence_root / "user_repository.py").exists()
+    assert (persistence_root / "view_event_repository.py").exists()

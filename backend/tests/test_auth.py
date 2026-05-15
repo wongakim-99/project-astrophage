@@ -3,7 +3,7 @@
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.repositories.user_repo import UserRepository
+from app.adapters.persistence.user_repository import UserRepository
 
 
 async def test_register_success(client: AsyncClient, session: AsyncSession) -> None:

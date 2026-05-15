@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.domain.galaxy.rules import default_galaxy_color
 from app.models.galaxy import Galaxy
-from app.repositories.galaxy_repo import GalaxyRepository
+from app.ports.galaxy_repository import GalaxyRepositoryPort
 
 
 class GalaxyUseCaseError(Exception):
@@ -17,13 +17,13 @@ class GalaxyUseCaseError(Exception):
 class GalaxyUseCases:
     """사용자 소유 은하 CRUD 유스케이스의 트랜잭션 흐름을 조율한다."""
 
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(self, session: AsyncSession, galaxy_repo: GalaxyRepositoryPort) -> None:
         """
         Args:
             session: 은하 조회/변경과 commit에 사용할 요청 범위 비동기 DB 세션.
         """
         self._session = session
-        self._repo = GalaxyRepository(session)
+        self._repo = galaxy_repo
 
     async def list_galaxies(self, user_id: uuid.UUID) -> list[dict[str, Any]]:
         """

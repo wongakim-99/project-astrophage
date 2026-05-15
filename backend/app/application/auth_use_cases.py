@@ -7,8 +7,8 @@ from app.core.security import (
     verify_password,
 )
 from app.models.user import User
-from app.repositories.star_repo import StarRepository
-from app.repositories.user_repo import UserRepository
+from app.ports.star_repository import StarRepositoryPort
+from app.ports.user_repository import UserRepositoryPort
 from app.schemas.auth import TokenResponse, UserResponse
 
 
@@ -21,14 +21,19 @@ class AuthUseCaseError(Exception):
 class AuthUseCases:
     """인증과 사용자 설정 변경 유스케이스의 흐름을 조율한다."""
 
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(
+        self,
+        session: AsyncSession,
+        user_repo: UserRepositoryPort,
+        star_repo: StarRepositoryPort,
+    ) -> None:
         """
         Args:
             session: 사용자와 항성 공개 상태 변경에 사용할 요청 범위 비동기 DB 세션.
         """
         self._session = session
-        self._user_repo = UserRepository(session)
-        self._star_repo = StarRepository(session)
+        self._user_repo = user_repo
+        self._star_repo = star_repo
 
     async def register(self, username: str, email: str, password: str) -> tuple[TokenResponse, str]:
         """

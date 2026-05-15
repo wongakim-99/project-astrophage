@@ -12,10 +12,10 @@ from app.domain.star.rules import (
 )
 from app.models.star import Star
 from app.ports.embedding_provider import EmbeddingProvider
-from app.repositories.galaxy_repo import GalaxyRepository
-from app.repositories.star_repo import StarRepository
-from app.repositories.user_repo import UserRepository
-from app.repositories.view_event_repo import ViewEventRepository
+from app.ports.galaxy_repository import GalaxyRepositoryPort
+from app.ports.star_repository import StarRepositoryPort
+from app.ports.user_repository import UserRepositoryPort
+from app.ports.view_event_repository import ViewEventRepositoryPort
 from app.schemas.star import SimilarStarPreview, StarResponse
 
 # 유효 조회에서 Nova 에너지를 받을 같은 은하 내 이웃 항성 수.
@@ -31,16 +31,24 @@ class StarUseCaseError(Exception):
 class StarUseCases:
     """항성 유스케이스의 트랜잭션 흐름과 외부 포트 호출을 조율한다."""
 
-    def __init__(self, session: AsyncSession, embedding_provider: EmbeddingProvider) -> None:
+    def __init__(
+        self,
+        session: AsyncSession,
+        star_repo: StarRepositoryPort,
+        galaxy_repo: GalaxyRepositoryPort,
+        user_repo: UserRepositoryPort,
+        view_event_repo: ViewEventRepositoryPort,
+        embedding_provider: EmbeddingProvider,
+    ) -> None:
         """
         Args:
             session: 항성/은하/이벤트 조회와 commit에 사용할 요청 범위 비동기 DB 세션.
         """
         self._session = session
-        self._repo = StarRepository(session)
-        self._galaxy_repo = GalaxyRepository(session)
-        self._view_repo = ViewEventRepository(session)
-        self._user_repo = UserRepository(session)
+        self._repo = star_repo
+        self._galaxy_repo = galaxy_repo
+        self._view_repo = view_event_repo
+        self._user_repo = user_repo
         self._embedding_provider = embedding_provider
 
     async def get_stars_in_galaxy(self, user_id: uuid.UUID, galaxy_id: uuid.UUID) -> list[StarResponse]:
@@ -91,8 +99,7 @@ class StarUseCases:
             username: 공개 URL에 포함된 항성 소유자 username.
             slug: 공개 URL에 포함된 사용자 범위 Star slug.
         """
-        user_repo = UserRepository(self._session)
-        user = await user_repo.get_by_username(username)
+        user = await self._user_repo.get_by_username(username)
         if user is None:
             raise StarUseCaseError("User not found")
 

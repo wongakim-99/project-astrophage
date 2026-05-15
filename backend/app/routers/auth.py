@@ -3,6 +3,8 @@ from typing import Annotated
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.adapters.persistence.star_repository import StarRepository
+from app.adapters.persistence.user_repository import UserRepository
 from app.application.auth_use_cases import AuthUseCaseError, AuthUseCases
 from app.core.database import get_session
 from app.core.dependencies import CurrentUser
@@ -21,6 +23,14 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 REFRESH_COOKIE = "refresh_token"
 
 
+def _auth_use_cases(session: AsyncSession) -> AuthUseCases:
+    return AuthUseCases(
+        session,
+        user_repo=UserRepository(session),
+        star_repo=StarRepository(session),
+    )
+
+
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 async def register(
     body: RegisterRequest,
@@ -35,7 +45,7 @@ async def register(
         response: refresh token 쿠키를 설정할 FastAPI 응답 객체.
         session: 요청 범위에서 공유하는 비동기 DB 세션.
     """
-    use_cases = AuthUseCases(session)
+    use_cases = _auth_use_cases(session)
     try:
         tokens, refresh = await use_cases.register(
             username=body.username,
@@ -62,7 +72,7 @@ async def login(
         response: refresh token 쿠키를 설정할 FastAPI 응답 객체.
         session: 요청 범위에서 공유하는 비동기 DB 세션.
     """
-    use_cases = AuthUseCases(session)
+    use_cases = _auth_use_cases(session)
     try:
         tokens, refresh = await use_cases.login(email=body.email, password=body.password)
     except AuthUseCaseError as e:
@@ -90,7 +100,7 @@ async def refresh_token(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token") from e
 
-    use_cases = AuthUseCases(session)
+    use_cases = _auth_use_cases(session)
     try:
         return await use_cases.refresh(user_id)
     except AuthUseCaseError as e:
@@ -127,7 +137,7 @@ async def update_me_settings(
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> UserResponse:
     """우주 탐색 노출 여부를 사용자 단위로 저장한다. 공개로 전환 시 기존 항성 전부 공개."""
-    use_cases = AuthUseCases(session)
+    use_cases = _auth_use_cases(session)
     return await use_cases.update_universe_visibility(
         current_user=current_user,
         is_universe_public=body.is_universe_public,

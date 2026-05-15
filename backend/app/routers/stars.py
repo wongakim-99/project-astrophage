@@ -5,6 +5,10 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.openai_embedding_provider import OpenAIEmbeddingProvider
+from app.adapters.persistence.galaxy_repository import GalaxyRepository
+from app.adapters.persistence.star_repository import StarRepository
+from app.adapters.persistence.user_repository import UserRepository
+from app.adapters.persistence.view_event_repository import ViewEventRepository
 from app.application.star_use_cases import StarUseCaseError, StarUseCases
 from app.core.database import get_session
 from app.core.dependencies import CurrentUser
@@ -23,7 +27,14 @@ router = APIRouter(prefix="/stars", tags=["stars"])
 
 
 def _star_use_cases(session: AsyncSession) -> StarUseCases:
-    return StarUseCases(session, embedding_provider=OpenAIEmbeddingProvider())
+    return StarUseCases(
+        session,
+        star_repo=StarRepository(session),
+        galaxy_repo=GalaxyRepository(session),
+        user_repo=UserRepository(session),
+        view_event_repo=ViewEventRepository(session),
+        embedding_provider=OpenAIEmbeddingProvider(),
+    )
 
 
 @router.get("/galaxy/{galaxy_id}", response_model=list[StarResponse])

@@ -4,6 +4,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.adapters.persistence.galaxy_repository import GalaxyRepository
 from app.application.galaxy_use_cases import GalaxyUseCaseError, GalaxyUseCases
 from app.core.database import get_session
 from app.core.dependencies import CurrentUser
@@ -11,6 +12,10 @@ from app.schemas.common import MessageResponse
 from app.schemas.galaxy import GalaxyCreate, GalaxyResponse, GalaxyUpdate
 
 router = APIRouter(prefix="/galaxies", tags=["galaxies"])
+
+
+def _galaxy_use_cases(session: AsyncSession) -> GalaxyUseCases:
+    return GalaxyUseCases(session, galaxy_repo=GalaxyRepository(session))
 
 
 @router.get("", response_model=list[GalaxyResponse])
@@ -25,7 +30,7 @@ async def list_galaxies(
         current_user: Bearer access token에서 확인한 현재 사용자.
         session: 요청 범위에서 공유하는 비동기 DB 세션.
     """
-    use_cases = GalaxyUseCases(session)
+    use_cases = _galaxy_use_cases(session)
     galaxies = await use_cases.list_galaxies(current_user.id)
     return [GalaxyResponse(**g) for g in galaxies]
 
@@ -44,7 +49,7 @@ async def create_galaxy(
         current_user: Bearer access token에서 확인한 현재 사용자.
         session: 요청 범위에서 공유하는 비동기 DB 세션.
     """
-    use_cases = GalaxyUseCases(session)
+    use_cases = _galaxy_use_cases(session)
     try:
         galaxy = await use_cases.create_galaxy(
             user_id=current_user.id,
@@ -73,7 +78,7 @@ async def update_galaxy(
         current_user: Bearer access token에서 확인한 현재 사용자.
         session: 요청 범위에서 공유하는 비동기 DB 세션.
     """
-    use_cases = GalaxyUseCases(session)
+    use_cases = _galaxy_use_cases(session)
     try:
         galaxy = await use_cases.update_galaxy(
             user_id=current_user.id,
@@ -100,7 +105,7 @@ async def delete_galaxy(
         current_user: Bearer access token에서 확인한 현재 사용자.
         session: 요청 범위에서 공유하는 비동기 DB 세션.
     """
-    use_cases = GalaxyUseCases(session)
+    use_cases = _galaxy_use_cases(session)
     try:
         await use_cases.delete_galaxy(user_id=current_user.id, galaxy_id=galaxy_id)
     except GalaxyUseCaseError as e:

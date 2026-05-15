@@ -1,5 +1,8 @@
+from dataclasses import asdict
+
 from fastapi import APIRouter, HTTPException, Query, status
 
+from app.application.star_dto import StarPublicDetails
 from app.application.star_use_cases import StarUseCaseError
 from app.core.dependencies import StarUseCaseDep
 from app.schemas.star import StarPublicResponse
@@ -22,7 +25,8 @@ async def list_public_stars(
         limit: 한 번에 반환할 공개 항성 최대 개수. 1~100 사이만 허용한다.
         offset: 페이지네이션을 위해 앞에서 건너뛸 공개 항성 개수.
     """
-    return await use_cases.list_public_stars(limit=limit, offset=offset)
+    stars = await use_cases.list_public_stars(limit=limit, offset=offset)
+    return [_public_star_response(star) for star in stars]
 
 
 @router.get("/{username}/stars/{slug}", response_model=StarPublicResponse)
@@ -40,6 +44,10 @@ async def get_public_star(
         use_cases: composition root가 조립한 항성 유스케이스.
     """
     try:
-        return await use_cases.get_public_star(username, slug)
+        return _public_star_response(await use_cases.get_public_star(username, slug))
     except StarUseCaseError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e)) from e
+
+
+def _public_star_response(star: StarPublicDetails) -> StarPublicResponse:
+    return StarPublicResponse(**asdict(star))

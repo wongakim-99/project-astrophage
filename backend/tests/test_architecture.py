@@ -94,6 +94,23 @@ def test_application_use_cases_do_not_depend_on_repository_implementations() -> 
         assert "from app.adapters.persistence" not in source
 
 
+def test_application_use_cases_do_not_depend_on_sqlalchemy() -> None:
+    application_root = PROJECT_ROOT / "app" / "application"
+
+    for source_path in application_root.glob("*_use_cases.py"):
+        source = source_path.read_text(encoding="utf-8")
+        assert "sqlalchemy" not in source
+
+
+def test_application_use_cases_do_not_depend_on_http_schemas() -> None:
+    application_root = PROJECT_ROOT / "app" / "application"
+
+    for source_path in application_root.glob("*_use_cases.py"):
+        source = source_path.read_text(encoding="utf-8")
+        assert "app.schemas." not in source
+        assert "from app.schemas" not in source
+
+
 def test_routers_do_not_construct_adapters_directly() -> None:
     router_root = PROJECT_ROOT / "app" / "routers"
 
@@ -112,3 +129,4 @@ def test_repositories_are_persistence_adapters() -> None:
     assert (persistence_root / "galaxy_repository.py").exists()
     assert (persistence_root / "user_repository.py").exists()
     assert (persistence_root / "view_event_repository.py").exists()
+    assert (persistence_root / "unit_of_work.py").exists()

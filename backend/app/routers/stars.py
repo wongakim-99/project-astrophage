@@ -1,7 +1,9 @@
 import uuid
+from dataclasses import asdict
 
 from fastapi import APIRouter, HTTPException, status
 
+from app.application.star_dto import SimilarStar, StarDetails
 from app.application.star_use_cases import StarUseCaseError
 from app.core.dependencies import CurrentUser, StarUseCaseDep
 from app.schemas.common import MessageResponse
@@ -33,7 +35,8 @@ async def list_stars_in_galaxy(
         use_cases: composition root가 조립한 항성 유스케이스.
     """
     try:
-        return await use_cases.get_stars_in_galaxy(current_user.id, galaxy_id)
+        stars = await use_cases.get_stars_in_galaxy(current_user.id, galaxy_id)
+        return [_star_response(star) for star in stars]
     except StarUseCaseError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
 
@@ -53,7 +56,13 @@ async def preview_similar(
         use_cases: composition root가 조립한 항성 유스케이스.
     """
     try:
-        return await use_cases.preview_similar(current_user.id, body.galaxy_id, body.title, body.content)
+        similar = await use_cases.preview_similar(
+            current_user.id,
+            body.galaxy_id,
+            body.title,
+            body.content,
+        )
+        return [_similar_response(star) for star in similar]
     except StarUseCaseError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
 
@@ -73,13 +82,13 @@ async def create_star(
         use_cases: composition root가 조립한 항성 유스케이스.
     """
     try:
-        return await use_cases.create_star(
+        return _star_response(await use_cases.create_star(
             user_id=current_user.id,
             galaxy_id=body.galaxy_id,
             title=body.title,
             slug=body.slug,
             content=body.content,
-        )
+        ))
     except StarUseCaseError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e)) from e
 
@@ -101,13 +110,13 @@ async def update_star(
         use_cases: composition root가 조립한 항성 유스케이스.
     """
     try:
-        return await use_cases.update_star(
+        return _star_response(await use_cases.update_star(
             user_id=current_user.id,
             star_id=star_id,
             title=body.title,
             content=body.content,
             galaxy_id=body.galaxy_id,
-        )
+        ))
     except StarUseCaseError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
 
@@ -150,12 +159,12 @@ async def record_view(
         use_cases: composition root가 조립한 항성 유스케이스.
     """
     try:
-        return await use_cases.record_view(
+        return _star_response(await use_cases.record_view(
             user_id=current_user.id,
             star_id=star_id,
             duration_seconds=body.duration_seconds,
             is_edit=body.is_edit,
-        )
+        ))
     except StarUseCaseError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
 
@@ -177,6 +186,14 @@ async def update_visibility(
         use_cases: composition root가 조립한 항성 유스케이스.
     """
     try:
-        return await use_cases.set_visibility(current_user.id, star_id, body.is_public)
+        return _star_response(await use_cases.set_visibility(current_user.id, star_id, body.is_public))
     except StarUseCaseError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
+
+
+def _star_response(star: StarDetails) -> StarResponse:
+    return StarResponse(**asdict(star))
+
+
+def _similar_response(star: SimilarStar) -> SimilarStarPreview:
+    return SimilarStarPreview(**asdict(star))

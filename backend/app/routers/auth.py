@@ -2,6 +2,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Cookie, HTTPException, Response, status
 
+from app.application.auth_dto import AccessToken, UserProfile
 from app.application.auth_use_cases import AuthUseCaseError
 from app.core.dependencies import AuthUseCaseDep, CurrentUser
 from app.core.security import decode_token
@@ -34,15 +35,15 @@ async def register(
         use_cases: composition root가 조립한 인증 유스케이스.
     """
     try:
-        tokens, refresh = await use_cases.register(
+        token_pair = await use_cases.register(
             username=body.username,
             email=body.email,
             password=body.password,
         )
     except AuthUseCaseError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e)) from e
-    _set_refresh_cookie(response, refresh)
-    return tokens
+    _set_refresh_cookie(response, token_pair.refresh_token)
+    return _token_response(AccessToken(access_token=token_pair.access_token))
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -60,11 +61,11 @@ async def login(
         use_cases: composition root가 조립한 인증 유스케이스.
     """
     try:
-        tokens, refresh = await use_cases.login(email=body.email, password=body.password)
+        token_pair = await use_cases.login(email=body.email, password=body.password)
     except AuthUseCaseError as e:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e)) from e
-    _set_refresh_cookie(response, refresh)
-    return tokens
+    _set_refresh_cookie(response, token_pair.refresh_token)
+    return _token_response(AccessToken(access_token=token_pair.access_token))
 
 
 @router.post("/refresh", response_model=TokenResponse)
@@ -87,7 +88,7 @@ async def refresh_token(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token") from e
 
     try:
-        return await use_cases.refresh(user_id)
+        return _token_response(await use_cases.refresh(user_id))
     except AuthUseCaseError as e:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(e)) from e
 
@@ -122,9 +123,22 @@ async def update_me_settings(
     use_cases: AuthUseCaseDep,
 ) -> UserResponse:
     """우주 탐색 노출 여부를 사용자 단위로 저장한다. 공개로 전환 시 기존 항성 전부 공개."""
-    return await use_cases.update_universe_visibility(
+    return _user_response(await use_cases.update_universe_visibility(
         current_user=current_user,
         is_universe_public=body.is_universe_public,
+    ))
+
+
+def _token_response(token: AccessToken) -> TokenResponse:
+    return TokenResponse(access_token=token.access_token)
+
+
+def _user_response(user: UserProfile) -> UserResponse:
+    return UserResponse(
+        id=user.id,
+        username=user.username,
+        email=user.email,
+        is_universe_public=user.is_universe_public,
     )
 
 

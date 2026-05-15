@@ -24,6 +24,12 @@ from sqlalchemy.ext.asyncio import (
 
 load_dotenv()
 
+RAW_DATABASE_URL = os.getenv("DATABASE_URL")
+os.environ.setdefault(
+    "DATABASE_URL",
+    "postgresql+asyncpg://postgres:postgres@localhost:5432/astrophage_app_placeholder",
+)
+
 from app.core.dependencies import get_current_user, get_session  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models.base import Base  # noqa: E402
@@ -34,7 +40,7 @@ from app.models.view_event import ViewEvent  # noqa: E402, F401
 from app.models.wormhole import Wormhole  # noqa: E402, F401
 
 TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL")
-DATABASE_URL = os.getenv("DATABASE_URL")
+DATABASE_URL = RAW_DATABASE_URL
 
 FAKE_EMBEDDING = [0.01] * 1536
 

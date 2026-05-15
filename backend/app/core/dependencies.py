@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.adapters.openai_embedding_provider import OpenAIEmbeddingProvider
 from app.adapters.persistence.galaxy_repository import GalaxyRepository
 from app.adapters.persistence.star_repository import StarRepository
+from app.adapters.persistence.unit_of_work import SqlAlchemyUnitOfWork
 from app.adapters.persistence.user_repository import UserRepository
 from app.adapters.persistence.view_event_repository import ViewEventRepository
 from app.application.auth_use_cases import AuthUseCases
@@ -43,7 +44,7 @@ async def get_current_user(
 def get_auth_use_cases(session: Annotated[AsyncSession, Depends(get_session)]) -> AuthUseCases:
     """인증 유스케이스에 필요한 persistence adapter를 조립한다."""
     return AuthUseCases(
-        session,
+        unit_of_work=SqlAlchemyUnitOfWork(session),
         user_repo=UserRepository(session),
         star_repo=StarRepository(session),
     )
@@ -51,13 +52,16 @@ def get_auth_use_cases(session: Annotated[AsyncSession, Depends(get_session)]) -
 
 def get_galaxy_use_cases(session: Annotated[AsyncSession, Depends(get_session)]) -> GalaxyUseCases:
     """은하 유스케이스에 필요한 persistence adapter를 조립한다."""
-    return GalaxyUseCases(session, galaxy_repo=GalaxyRepository(session))
+    return GalaxyUseCases(
+        unit_of_work=SqlAlchemyUnitOfWork(session),
+        galaxy_repo=GalaxyRepository(session),
+    )
 
 
 def get_star_use_cases(session: Annotated[AsyncSession, Depends(get_session)]) -> StarUseCases:
     """항성 유스케이스에 필요한 persistence/external adapter를 조립한다."""
     return StarUseCases(
-        session,
+        unit_of_work=SqlAlchemyUnitOfWork(session),
         star_repo=StarRepository(session),
         galaxy_repo=GalaxyRepository(session),
         user_repo=UserRepository(session),

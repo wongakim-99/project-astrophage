@@ -1,11 +1,10 @@
 import uuid
-from typing import Any
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
+from app.application.galaxy_dto import GalaxyDetails
 from app.domain.galaxy.rules import default_galaxy_color
 from app.models.galaxy import Galaxy
 from app.ports.galaxy_repository import GalaxyRepositoryPort
+from app.ports.unit_of_work import UnitOfWorkPort
 
 
 class GalaxyUseCaseError(Exception):
@@ -17,15 +16,15 @@ class GalaxyUseCaseError(Exception):
 class GalaxyUseCases:
     """사용자 소유 은하 CRUD 유스케이스의 트랜잭션 흐름을 조율한다."""
 
-    def __init__(self, session: AsyncSession, galaxy_repo: GalaxyRepositoryPort) -> None:
+    def __init__(self, unit_of_work: UnitOfWorkPort, galaxy_repo: GalaxyRepositoryPort) -> None:
         """
         Args:
-            session: 은하 조회/변경과 commit에 사용할 요청 범위 비동기 DB 세션.
+            unit_of_work: 은하 조회/변경을 확정할 트랜잭션 포트.
         """
-        self._session = session
+        self._uow = unit_of_work
         self._repo = galaxy_repo
 
-    async def list_galaxies(self, user_id: uuid.UUID) -> list[dict[str, Any]]:
+    async def list_galaxies(self, user_id: uuid.UUID) -> list[GalaxyDetails]:
         """
         탐색 UI에 필요한 가벼운 항성 수와 함께 은하 목록을 반환한다.
 
@@ -33,15 +32,15 @@ class GalaxyUseCases:
             user_id: 은하 목록을 가져올 소유자 UUID.
         """
         galaxies = await self._repo.list_by_user(user_id)
-        result: list[dict[str, Any]] = []
+        result: list[GalaxyDetails] = []
         for galaxy in galaxies:
             count = await self._repo.count_stars(galaxy.id)
-            result.append({**galaxy.__dict__, "star_count": count})
+            result.append(self._to_details(galaxy, star_count=count))
         return result
 
     async def create_galaxy(
         self, user_id: uuid.UUID, name: str, slug: str, color: str | None
-    ) -> Galaxy:
+    ) -> GalaxyDetails:
         """
         사용자 범위 slug 중복을 확인하고 새 은하를 생성한다.
 
@@ -59,12 +58,12 @@ class GalaxyUseCases:
             color = default_galaxy_color(len(existing))
 
         galaxy = await self._repo.create(user_id=user_id, name=name, slug=slug, color=color)
-        await self._session.commit()
-        return galaxy
+        await self._uow.commit()
+        return self._to_details(galaxy)
 
     async def update_galaxy(
         self, user_id: uuid.UUID, galaxy_id: uuid.UUID, name: str | None, color: str | None
-    ) -> Galaxy:
+    ) -> GalaxyDetails:
         """
         소유권을 확인한 뒤 은하의 표시 이름과 색상을 수정한다.
 
@@ -76,8 +75,8 @@ class GalaxyUseCases:
         """
         galaxy = await self._get_owned(user_id, galaxy_id)
         galaxy = await self._repo.update(galaxy, name=name, color=color)
-        await self._session.commit()
-        return galaxy
+        await self._uow.commit()
+        return self._to_details(galaxy)
 
     async def delete_galaxy(self, user_id: uuid.UUID, galaxy_id: uuid.UUID) -> None:
         """
@@ -89,7 +88,7 @@ class GalaxyUseCases:
         """
         galaxy = await self._get_owned(user_id, galaxy_id)
         await self._repo.delete(galaxy)
-        await self._session.commit()
+        await self._uow.commit()
 
     async def _get_owned(self, user_id: uuid.UUID, galaxy_id: uuid.UUID) -> Galaxy:
         """
@@ -103,3 +102,12 @@ class GalaxyUseCases:
         if galaxy is None or galaxy.user_id != user_id:
             raise GalaxyUseCaseError("Galaxy not found")
         return galaxy
+
+    def _to_details(self, galaxy: Galaxy, star_count: int = 0) -> GalaxyDetails:
+        return GalaxyDetails(
+            id=galaxy.id,
+            name=galaxy.name,
+            slug=galaxy.slug,
+            color=galaxy.color,
+            star_count=star_count,
+        )

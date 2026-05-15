@@ -1,5 +1,4 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-
+from app.application.auth_dto import AccessToken, TokenPair, UserProfile
 from app.core.security import (
     create_access_token,
     create_refresh_token,
@@ -8,8 +7,8 @@ from app.core.security import (
 )
 from app.models.user import User
 from app.ports.star_repository import StarRepositoryPort
+from app.ports.unit_of_work import UnitOfWorkPort
 from app.ports.user_repository import UserRepositoryPort
-from app.schemas.auth import TokenResponse, UserResponse
 
 
 class AuthUseCaseError(Exception):
@@ -23,19 +22,19 @@ class AuthUseCases:
 
     def __init__(
         self,
-        session: AsyncSession,
+        unit_of_work: UnitOfWorkPort,
         user_repo: UserRepositoryPort,
         star_repo: StarRepositoryPort,
     ) -> None:
         """
         Args:
-            session: 사용자와 항성 공개 상태 변경에 사용할 요청 범위 비동기 DB 세션.
+            unit_of_work: 사용자와 항성 공개 상태 변경을 확정할 트랜잭션 포트.
         """
-        self._session = session
+        self._uow = unit_of_work
         self._user_repo = user_repo
         self._star_repo = star_repo
 
-    async def register(self, username: str, email: str, password: str) -> tuple[TokenResponse, str]:
+    async def register(self, username: str, email: str, password: str) -> TokenPair:
         """
         username/email 중복을 검사하고 access token과 refresh token을 발급한다.
 
@@ -55,11 +54,12 @@ class AuthUseCases:
             password_hash=hash_password(password),
         )
 
-        tokens = TokenResponse(access_token=create_access_token(str(user.id)))
-        refresh_token = create_refresh_token(str(user.id))
-        return tokens, refresh_token
+        return TokenPair(
+            access_token=create_access_token(str(user.id)),
+            refresh_token=create_refresh_token(str(user.id)),
+        )
 
-    async def login(self, email: str, password: str) -> tuple[TokenResponse, str]:
+    async def login(self, email: str, password: str) -> TokenPair:
         """
         이메일/비밀번호를 검증하고 access token과 refresh token을 반환한다.
 
@@ -71,12 +71,12 @@ class AuthUseCases:
         if user is None or not verify_password(password, user.password_hash):
             raise AuthUseCaseError("Invalid email or password")
 
-        return (
-            TokenResponse(access_token=create_access_token(str(user.id))),
-            create_refresh_token(str(user.id)),
+        return TokenPair(
+            access_token=create_access_token(str(user.id)),
+            refresh_token=create_refresh_token(str(user.id)),
         )
 
-    async def refresh(self, user_id: str) -> TokenResponse:
+    async def refresh(self, user_id: str) -> AccessToken:
         """
         refresh token subject로 받은 사용자 ID를 새 access token으로 교환한다.
 
@@ -86,11 +86,11 @@ class AuthUseCases:
         user = await self._user_repo.get_by_id(user_id)
         if user is None:
             raise AuthUseCaseError("User not found")
-        return TokenResponse(access_token=create_access_token(str(user.id)))
+        return AccessToken(access_token=create_access_token(str(user.id)))
 
     async def update_universe_visibility(
         self, current_user: User, is_universe_public: bool
-    ) -> UserResponse:
+    ) -> UserProfile:
         """
         우주 탐색 노출 여부를 저장한다. 공개 전환 시 기존 항성을 모두 공개한다.
 
@@ -101,9 +101,9 @@ class AuthUseCases:
         current_user.is_universe_public = is_universe_public
         if is_universe_public:
             await self._star_repo.set_all_public_for_user(current_user.id, is_public=True)
-        await self._session.commit()
-        await self._session.refresh(current_user)
-        return UserResponse(
+        await self._uow.commit()
+        await self._uow.refresh(current_user)
+        return UserProfile(
             id=str(current_user.id),
             username=current_user.username,
             email=current_user.email,

@@ -1,7 +1,9 @@
 import uuid
+from dataclasses import asdict
 
 from fastapi import APIRouter, HTTPException, status
 
+from app.application.galaxy_dto import GalaxyDetails
 from app.application.galaxy_use_cases import GalaxyUseCaseError
 from app.core.dependencies import CurrentUser, GalaxyUseCaseDep
 from app.schemas.common import MessageResponse
@@ -23,7 +25,7 @@ async def list_galaxies(
         use_cases: composition root가 조립한 은하 유스케이스.
     """
     galaxies = await use_cases.list_galaxies(current_user.id)
-    return [GalaxyResponse(**g) for g in galaxies]
+    return [_galaxy_response(g) for g in galaxies]
 
 
 @router.post("", response_model=GalaxyResponse, status_code=status.HTTP_201_CREATED)
@@ -49,7 +51,7 @@ async def create_galaxy(
         )
     except GalaxyUseCaseError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e)) from e
-    return GalaxyResponse(id=galaxy.id, name=galaxy.name, slug=galaxy.slug, color=galaxy.color)
+    return _galaxy_response(galaxy)
 
 
 @router.patch("/{galaxy_id}", response_model=GalaxyResponse)
@@ -77,7 +79,7 @@ async def update_galaxy(
         )
     except GalaxyUseCaseError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
-    return GalaxyResponse(id=galaxy.id, name=galaxy.name, slug=galaxy.slug, color=galaxy.color)
+    return _galaxy_response(galaxy)
 
 
 @router.delete("/{galaxy_id}", response_model=MessageResponse)
@@ -99,3 +101,7 @@ async def delete_galaxy(
     except GalaxyUseCaseError as e:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e)) from e
     return MessageResponse(message="Galaxy deleted")
+
+
+def _galaxy_response(galaxy: GalaxyDetails) -> GalaxyResponse:
+    return GalaxyResponse(**asdict(galaxy))

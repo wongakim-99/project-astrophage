@@ -1,7 +1,6 @@
 import uuid
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
+from app.application.star_dto import SimilarStar, StarDetails, StarPublicDetails
 from app.domain.star.lifecycle import LifecycleState, compute_lifecycle
 from app.domain.star.placement import place_new_star
 from app.domain.star.rules import (
@@ -14,9 +13,9 @@ from app.models.star import Star
 from app.ports.embedding_provider import EmbeddingProvider
 from app.ports.galaxy_repository import GalaxyRepositoryPort
 from app.ports.star_repository import StarRepositoryPort
+from app.ports.unit_of_work import UnitOfWorkPort
 from app.ports.user_repository import UserRepositoryPort
 from app.ports.view_event_repository import ViewEventRepositoryPort
-from app.schemas.star import SimilarStarPreview, StarPublicResponse, StarResponse
 
 # 유효 조회에서 Nova 에너지를 받을 같은 은하 내 이웃 항성 수.
 NOVA_K = 5
@@ -33,7 +32,7 @@ class StarUseCases:
 
     def __init__(
         self,
-        session: AsyncSession,
+        unit_of_work: UnitOfWorkPort,
         star_repo: StarRepositoryPort,
         galaxy_repo: GalaxyRepositoryPort,
         user_repo: UserRepositoryPort,
@@ -42,16 +41,16 @@ class StarUseCases:
     ) -> None:
         """
         Args:
-            session: 항성/은하/이벤트 조회와 commit에 사용할 요청 범위 비동기 DB 세션.
+            unit_of_work: 항성/은하/이벤트 변경을 확정할 트랜잭션 포트.
         """
-        self._session = session
+        self._uow = unit_of_work
         self._repo = star_repo
         self._galaxy_repo = galaxy_repo
         self._view_repo = view_event_repo
         self._user_repo = user_repo
         self._embedding_provider = embedding_provider
 
-    async def get_stars_in_galaxy(self, user_id: uuid.UUID, galaxy_id: uuid.UUID) -> list[StarResponse]:
+    async def get_stars_in_galaxy(self, user_id: uuid.UUID, galaxy_id: uuid.UUID) -> list[StarDetails]:
         """
         사용자 본인의 항성만 나열한다. 공개 피드 규칙은 이 경로에 섞지 않는다.
 
@@ -68,13 +67,13 @@ class StarUseCases:
         recent_map = await self._view_repo.list_recent_by_stars(star_ids, days=30)
         last_valid_map = await self._view_repo.get_last_valids(star_ids)
 
-        results: list[StarResponse] = []
+        results: list[StarDetails] = []
         for star in stars:
             state, energy = compute_lifecycle(
                 recent_map.get(star.id, []),
                 last_valid_map.get(star.id),
             )
-            results.append(StarResponse(
+            results.append(StarDetails(
                 id=star.id,
                 user_id=star.user_id,
                 galaxy_id=star.galaxy_id,
@@ -91,7 +90,7 @@ class StarUseCases:
             ))
         return results
 
-    async def get_public_star(self, username: str, slug: str) -> StarPublicResponse:
+    async def get_public_star(self, username: str, slug: str) -> StarPublicDetails:
         """
         공개 username/slug 경로에서 노출 가능한 항성을 응답 형태로 반환한다.
 
@@ -110,7 +109,7 @@ class StarUseCases:
 
     async def preview_similar(
         self, user_id: uuid.UUID, galaxy_id: uuid.UUID, title: str, content: str
-    ) -> list[SimilarStarPreview]:
+    ) -> list[SimilarStar]:
         """
         항성을 저장하기 전에 생성 모달용 유사 항성 미리보기를 계산한다.
 
@@ -124,7 +123,7 @@ class StarUseCases:
         vec = await self._embedding_provider.embed_text(embedding_source(title, content))
         similar = await self._repo.find_similar_in_galaxy(galaxy_id, vec, k=5)
         return [
-            SimilarStarPreview(id=s.id, title=s.title, similarity=round(sim, 3))
+            SimilarStar(id=s.id, title=s.title, similarity=round(sim, 3))
             for s, sim in similar
             if sim > 0.5
         ]
@@ -136,7 +135,7 @@ class StarUseCases:
         title: str,
         slug: str,
         content: str,
-    ) -> StarResponse:
+    ) -> StarDetails:
         """
         소유 은하 안에 기본 비공개 항성을 만들고 최초 고정 좌표를 배정한다.
 
@@ -176,7 +175,7 @@ class StarUseCases:
             pos_y=pos_y,
             is_public=is_public,
         )
-        await self._session.commit()
+        await self._uow.commit()
         return await self._to_response(star)
 
     async def update_star(
@@ -186,7 +185,7 @@ class StarUseCases:
         title: str | None,
         content: str | None,
         galaxy_id: uuid.UUID | None,
-    ) -> StarResponse:
+    ) -> StarDetails:
         """
         항성의 제목, 본문, 소속 은하를 수정한다. 의미 콘텐츠가 바뀌면 임베딩만 갱신한다.
 
@@ -218,7 +217,7 @@ class StarUseCases:
             embedding=new_embedding,
             galaxy_id=galaxy_id,
         )
-        await self._session.commit()
+        await self._uow.commit()
         return await self._to_response(star)
 
     async def delete_star(self, user_id: uuid.UUID, star_id: uuid.UUID) -> None:
@@ -231,11 +230,11 @@ class StarUseCases:
         """
         star = await self._get_owned(user_id, star_id)
         await self._repo.delete(star)
-        await self._session.commit()
+        await self._uow.commit()
 
     async def set_visibility(
         self, user_id: uuid.UUID, star_id: uuid.UUID, is_public: bool
-    ) -> StarResponse:
+    ) -> StarDetails:
         """
         소유자의 명시적 액션으로만 항성을 공개/비공개 전환한다.
 
@@ -246,7 +245,7 @@ class StarUseCases:
         """
         star = await self._get_owned(user_id, star_id)
         star = await self._repo.update_visibility(star, is_public)
-        await self._session.commit()
+        await self._uow.commit()
         return await self._to_response(star)
 
     async def record_view(
@@ -255,7 +254,7 @@ class StarUseCases:
         star_id: uuid.UUID,
         duration_seconds: int,
         is_edit: bool,
-    ) -> StarResponse:
+    ) -> StarDetails:
         """
         체류/편집 이벤트를 저장하고 유효 이벤트이면 유사 항성에 Nova 에너지를 전파한다.
 
@@ -280,10 +279,10 @@ class StarUseCases:
         if direct_energy.is_valid:
             await self._propagate_nova(star, direct_energy.value)
 
-        await self._session.commit()
+        await self._uow.commit()
         return await self._to_response(star)
 
-    async def list_public_stars(self, limit: int, offset: int) -> list[StarPublicResponse]:
+    async def list_public_stars(self, limit: int, offset: int) -> list[StarPublicDetails]:
         """
         공개 explore 피드에 노출할 항성 목록을 응답 형태로 반환한다.
 
@@ -299,7 +298,7 @@ class StarUseCases:
         recent_map = await self._view_repo.list_recent_by_stars(star_ids, days=30)
         last_valid_map = await self._view_repo.get_last_valids(star_ids)
 
-        result: list[StarPublicResponse] = []
+        result: list[StarPublicDetails] = []
         for star, username in pairs:
             state, _ = compute_lifecycle(
                 recent_map.get(star.id, []),
@@ -332,7 +331,7 @@ class StarUseCases:
                 energy_value=nova_energy(base_energy),
             )
 
-    async def _to_response(self, star: Star) -> StarResponse:
+    async def _to_response(self, star: Star) -> StarDetails:
         """
         저장된 항성 필드에 실시간 생애주기 상태를 붙인다.
 
@@ -342,7 +341,7 @@ class StarUseCases:
         recent_events = await self._view_repo.list_recent_by_star(star.id, days=30)
         last_valid = await self._view_repo.get_last_valid(star.id)
         state, energy = compute_lifecycle(recent_events, last_valid)
-        return StarResponse(
+        return StarDetails(
             id=star.id,
             user_id=star.user_id,
             galaxy_id=star.galaxy_id,
@@ -358,7 +357,7 @@ class StarUseCases:
             updated_at=star.updated_at,
         )
 
-    async def _to_public_response(self, star: Star, username: str) -> StarPublicResponse:
+    async def _to_public_response(self, star: Star, username: str) -> StarPublicDetails:
         """
         공개 항성 응답에 실시간 생애주기 상태를 붙인다.
 
@@ -376,8 +375,8 @@ class StarUseCases:
         star: Star,
         username: str,
         lifecycle_state: LifecycleState,
-    ) -> StarPublicResponse:
-        return StarPublicResponse(
+    ) -> StarPublicDetails:
+        return StarPublicDetails(
             id=star.id,
             username=username,
             galaxy_id=star.galaxy_id,

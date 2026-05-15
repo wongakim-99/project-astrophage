@@ -1,13 +1,9 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, Cookie, HTTPException, Response, status
 
-from app.adapters.persistence.star_repository import StarRepository
-from app.adapters.persistence.user_repository import UserRepository
-from app.application.auth_use_cases import AuthUseCaseError, AuthUseCases
-from app.core.database import get_session
-from app.core.dependencies import CurrentUser
+from app.application.auth_use_cases import AuthUseCaseError
+from app.core.dependencies import AuthUseCaseDep, CurrentUser
 from app.core.security import decode_token
 from app.schemas.auth import (
     LoginRequest,
@@ -23,19 +19,11 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 REFRESH_COOKIE = "refresh_token"
 
 
-def _auth_use_cases(session: AsyncSession) -> AuthUseCases:
-    return AuthUseCases(
-        session,
-        user_repo=UserRepository(session),
-        star_repo=StarRepository(session),
-    )
-
-
 @router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
 async def register(
     body: RegisterRequest,
     response: Response,
-    session: Annotated[AsyncSession, Depends(get_session)],
+    use_cases: AuthUseCaseDep,
 ) -> TokenResponse:
     """
     계정을 만들고 access token과 httpOnly refresh token을 발급한다.
@@ -43,9 +31,8 @@ async def register(
     Args:
         body: username, email, password가 담긴 회원가입 요청 본문.
         response: refresh token 쿠키를 설정할 FastAPI 응답 객체.
-        session: 요청 범위에서 공유하는 비동기 DB 세션.
+        use_cases: composition root가 조립한 인증 유스케이스.
     """
-    use_cases = _auth_use_cases(session)
     try:
         tokens, refresh = await use_cases.register(
             username=body.username,
@@ -62,7 +49,7 @@ async def register(
 async def login(
     body: LoginRequest,
     response: Response,
-    session: Annotated[AsyncSession, Depends(get_session)],
+    use_cases: AuthUseCaseDep,
 ) -> TokenResponse:
     """
     이메일/비밀번호를 검증하고 access token과 httpOnly refresh token을 발급한다.
@@ -70,9 +57,8 @@ async def login(
     Args:
         body: email과 password가 담긴 로그인 요청 본문.
         response: refresh token 쿠키를 설정할 FastAPI 응답 객체.
-        session: 요청 범위에서 공유하는 비동기 DB 세션.
+        use_cases: composition root가 조립한 인증 유스케이스.
     """
-    use_cases = _auth_use_cases(session)
     try:
         tokens, refresh = await use_cases.login(email=body.email, password=body.password)
     except AuthUseCaseError as e:
@@ -83,15 +69,15 @@ async def login(
 
 @router.post("/refresh", response_model=TokenResponse)
 async def refresh_token(
+    use_cases: AuthUseCaseDep,
     refresh_token: Annotated[str | None, Cookie(alias=REFRESH_COOKIE)] = None,
-    session: Annotated[AsyncSession, Depends(get_session)] = None,  # type: ignore[assignment]
 ) -> TokenResponse:
     """
     httpOnly refresh 쿠키를 새 access token으로 교환한다.
 
     Args:
         refresh_token: REFRESH_COOKIE 이름으로 전달된 httpOnly refresh token 쿠키 값.
-        session: 요청 범위에서 공유하는 비동기 DB 세션.
+        use_cases: composition root가 조립한 인증 유스케이스.
     """
     if refresh_token is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing refresh token")
@@ -100,7 +86,6 @@ async def refresh_token(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token") from e
 
-    use_cases = _auth_use_cases(session)
     try:
         return await use_cases.refresh(user_id)
     except AuthUseCaseError as e:
@@ -134,10 +119,9 @@ async def get_me(current_user: CurrentUser) -> UserResponse:
 async def update_me_settings(
     body: UserSettingsUpdate,
     current_user: CurrentUser,
-    session: Annotated[AsyncSession, Depends(get_session)],
+    use_cases: AuthUseCaseDep,
 ) -> UserResponse:
     """우주 탐색 노출 여부를 사용자 단위로 저장한다. 공개로 전환 시 기존 항성 전부 공개."""
-    use_cases = _auth_use_cases(session)
     return await use_cases.update_universe_visibility(
         current_user=current_user,
         is_universe_public=body.is_universe_public,

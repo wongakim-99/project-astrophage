@@ -1,36 +1,27 @@
 import uuid
-from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, HTTPException, status
 
-from app.adapters.persistence.galaxy_repository import GalaxyRepository
-from app.application.galaxy_use_cases import GalaxyUseCaseError, GalaxyUseCases
-from app.core.database import get_session
-from app.core.dependencies import CurrentUser
+from app.application.galaxy_use_cases import GalaxyUseCaseError
+from app.core.dependencies import CurrentUser, GalaxyUseCaseDep
 from app.schemas.common import MessageResponse
 from app.schemas.galaxy import GalaxyCreate, GalaxyResponse, GalaxyUpdate
 
 router = APIRouter(prefix="/galaxies", tags=["galaxies"])
 
 
-def _galaxy_use_cases(session: AsyncSession) -> GalaxyUseCases:
-    return GalaxyUseCases(session, galaxy_repo=GalaxyRepository(session))
-
-
 @router.get("", response_model=list[GalaxyResponse])
 async def list_galaxies(
     current_user: CurrentUser,
-    session: Annotated[AsyncSession, Depends(get_session)],
+    use_cases: GalaxyUseCaseDep,
 ) -> list[GalaxyResponse]:
     """
     인증된 사용자의 은하만 반환한다.
 
     Args:
         current_user: Bearer access token에서 확인한 현재 사용자.
-        session: 요청 범위에서 공유하는 비동기 DB 세션.
+        use_cases: composition root가 조립한 은하 유스케이스.
     """
-    use_cases = _galaxy_use_cases(session)
     galaxies = await use_cases.list_galaxies(current_user.id)
     return [GalaxyResponse(**g) for g in galaxies]
 
@@ -39,7 +30,7 @@ async def list_galaxies(
 async def create_galaxy(
     body: GalaxyCreate,
     current_user: CurrentUser,
-    session: Annotated[AsyncSession, Depends(get_session)],
+    use_cases: GalaxyUseCaseDep,
 ) -> GalaxyResponse:
     """
     사용자 범위 은하를 생성한다. 슬러그 충돌은 명시적 오류로 처리한다.
@@ -47,9 +38,8 @@ async def create_galaxy(
     Args:
         body: name, slug, 선택적 color가 담긴 은하 생성 요청 본문.
         current_user: Bearer access token에서 확인한 현재 사용자.
-        session: 요청 범위에서 공유하는 비동기 DB 세션.
+        use_cases: composition root가 조립한 은하 유스케이스.
     """
-    use_cases = _galaxy_use_cases(session)
     try:
         galaxy = await use_cases.create_galaxy(
             user_id=current_user.id,
@@ -67,7 +57,7 @@ async def update_galaxy(
     galaxy_id: uuid.UUID,
     body: GalaxyUpdate,
     current_user: CurrentUser,
-    session: Annotated[AsyncSession, Depends(get_session)],
+    use_cases: GalaxyUseCaseDep,
 ) -> GalaxyResponse:
     """
     인증된 사용자가 소유한 은하의 표시 이름과 색상을 수정한다.
@@ -76,9 +66,8 @@ async def update_galaxy(
         galaxy_id: 수정할 Galaxy의 path UUID.
         body: 변경할 name과 color가 담긴 은하 수정 요청 본문. 생략된 필드는 유지한다.
         current_user: Bearer access token에서 확인한 현재 사용자.
-        session: 요청 범위에서 공유하는 비동기 DB 세션.
+        use_cases: composition root가 조립한 은하 유스케이스.
     """
-    use_cases = _galaxy_use_cases(session)
     try:
         galaxy = await use_cases.update_galaxy(
             user_id=current_user.id,
@@ -95,7 +84,7 @@ async def update_galaxy(
 async def delete_galaxy(
     galaxy_id: uuid.UUID,
     current_user: CurrentUser,
-    session: Annotated[AsyncSession, Depends(get_session)],
+    use_cases: GalaxyUseCaseDep,
 ) -> MessageResponse:
     """
     인증된 사용자가 소유한 은하를 삭제한다.
@@ -103,9 +92,8 @@ async def delete_galaxy(
     Args:
         galaxy_id: 삭제할 Galaxy의 path UUID.
         current_user: Bearer access token에서 확인한 현재 사용자.
-        session: 요청 범위에서 공유하는 비동기 DB 세션.
+        use_cases: composition root가 조립한 은하 유스케이스.
     """
-    use_cases = _galaxy_use_cases(session)
     try:
         await use_cases.delete_galaxy(user_id=current_user.id, galaxy_id=galaxy_id)
     except GalaxyUseCaseError as e:

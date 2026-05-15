@@ -94,6 +94,15 @@ def test_application_use_cases_do_not_depend_on_repository_implementations() -> 
         assert "from app.adapters.persistence" not in source
 
 
+def test_routers_do_not_construct_adapters_directly() -> None:
+    router_root = PROJECT_ROOT / "app" / "routers"
+
+    for source_path in router_root.glob("*.py"):
+        source = source_path.read_text(encoding="utf-8")
+        assert "app.adapters." not in source
+        assert "from app.adapters" not in source
+
+
 def test_repositories_are_persistence_adapters() -> None:
     repo_root = PROJECT_ROOT / "app" / "repositories"
     persistence_root = PROJECT_ROOT / "app" / "adapters" / "persistence"

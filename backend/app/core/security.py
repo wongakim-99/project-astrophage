@@ -22,21 +22,23 @@ def verify_password(plain: str, hashed: str) -> bool:
 def create_access_token(subject: str) -> str:
     """Authorization 헤더에 넣는 단기 bearer token을 생성한다."""
     expire = datetime.now(UTC) + timedelta(minutes=settings.access_token_expire_minutes)
-    return jwt.encode(
+    token = jwt.encode(
         {"sub": subject, "exp": expire, "type": "access"},
         settings.secret_key,
         algorithm=ALGORITHM,
     )
+    return str(token)
 
 
 def create_refresh_token(subject: str) -> str:
     """httpOnly 쿠키에만 저장할 장기 refresh token을 생성한다."""
     expire = datetime.now(UTC) + timedelta(days=settings.refresh_token_expire_days)
-    return jwt.encode(
+    token = jwt.encode(
         {"sub": subject, "exp": expire, "type": "refresh"},
         settings.secret_key,
         algorithm=ALGORITHM,
     )
+    return str(token)
 
 
 def decode_token(token: str, token_type: str = "access") -> str:

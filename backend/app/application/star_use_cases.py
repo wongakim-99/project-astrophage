@@ -2,7 +2,7 @@ import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.domain.star.lifecycle import compute_lifecycle
+from app.domain.star.lifecycle import LifecycleState, compute_lifecycle
 from app.domain.star.placement import place_new_star
 from app.domain.star.rules import (
     direct_view_energy,
@@ -16,7 +16,7 @@ from app.ports.galaxy_repository import GalaxyRepositoryPort
 from app.ports.star_repository import StarRepositoryPort
 from app.ports.user_repository import UserRepositoryPort
 from app.ports.view_event_repository import ViewEventRepositoryPort
-from app.schemas.star import SimilarStarPreview, StarResponse
+from app.schemas.star import SimilarStarPreview, StarPublicResponse, StarResponse
 
 # 유효 조회에서 Nova 에너지를 받을 같은 은하 내 이웃 항성 수.
 NOVA_K = 5
@@ -91,9 +91,9 @@ class StarUseCases:
             ))
         return results
 
-    async def get_public_star(self, username: str, slug: str) -> tuple[Star, str]:
+    async def get_public_star(self, username: str, slug: str) -> StarPublicResponse:
         """
-        공개 username/slug 경로에서 노출 가능한 항성만 찾아 (star, username)을 반환한다.
+        공개 username/slug 경로에서 노출 가능한 항성을 응답 형태로 반환한다.
 
         Args:
             username: 공개 URL에 포함된 항성 소유자 username.
@@ -106,7 +106,7 @@ class StarUseCases:
         star = await self._repo.get_public_by_username_slug(username, slug)
         if star is None:
             raise StarUseCaseError("Star not found or not public")
-        return star, username
+        return await self._to_public_response(star, username)
 
     async def preview_similar(
         self, user_id: uuid.UUID, galaxy_id: uuid.UUID, title: str, content: str
@@ -283,15 +283,30 @@ class StarUseCases:
         await self._session.commit()
         return await self._to_response(star)
 
-    async def list_public(self, limit: int, offset: int) -> list[tuple[Star, str]]:
+    async def list_public_stars(self, limit: int, offset: int) -> list[StarPublicResponse]:
         """
-        공개 explore 피드에 노출할 (항성, username) 쌍 목록을 가져온다.
+        공개 explore 피드에 노출할 항성 목록을 응답 형태로 반환한다.
 
         Args:
             limit: 한 번에 가져올 공개 항성 최대 개수.
             offset: 페이지네이션을 위해 건너뛸 공개 항성 개수.
         """
-        return await self._repo.list_public(limit=limit, offset=offset)
+        pairs = await self._repo.list_public(limit=limit, offset=offset)
+        if not pairs:
+            return []
+
+        star_ids = [star.id for star, _ in pairs]
+        recent_map = await self._view_repo.list_recent_by_stars(star_ids, days=30)
+        last_valid_map = await self._view_repo.get_last_valids(star_ids)
+
+        result: list[StarPublicResponse] = []
+        for star, username in pairs:
+            state, _ = compute_lifecycle(
+                recent_map.get(star.id, []),
+                last_valid_map.get(star.id),
+            )
+            result.append(self._public_response(star, username, state))
+        return result
 
     async def _propagate_nova(self, source_star: Star, base_energy: float) -> None:
         """
@@ -339,6 +354,37 @@ class StarUseCases:
             is_public=star.is_public,
             lifecycle_state=state,
             energy_score=energy,
+            created_at=star.created_at,
+            updated_at=star.updated_at,
+        )
+
+    async def _to_public_response(self, star: Star, username: str) -> StarPublicResponse:
+        """
+        공개 항성 응답에 실시간 생애주기 상태를 붙인다.
+
+        Args:
+            star: 공개 응답 스키마로 변환할 Star 모델 인스턴스.
+            username: 공개 URL에 노출할 소유자 username.
+        """
+        recent_events = await self._view_repo.list_recent_by_star(star.id, days=30)
+        last_valid = await self._view_repo.get_last_valid(star.id)
+        state, _ = compute_lifecycle(recent_events, last_valid)
+        return self._public_response(star, username, state)
+
+    def _public_response(
+        self,
+        star: Star,
+        username: str,
+        lifecycle_state: LifecycleState,
+    ) -> StarPublicResponse:
+        return StarPublicResponse(
+            id=star.id,
+            username=username,
+            galaxy_id=star.galaxy_id,
+            title=star.title,
+            slug=star.slug,
+            content=star.content,
+            lifecycle_state=lifecycle_state,
             created_at=star.created_at,
             updated_at=star.updated_at,
         )

@@ -4,8 +4,15 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.adapters.openai_embedding_provider import OpenAIEmbeddingProvider
+from app.adapters.persistence.galaxy_repository import GalaxyRepository
+from app.adapters.persistence.star_repository import StarRepository
 from app.adapters.persistence.user_repository import UserRepository
-from app.core.database import get_session
+from app.adapters.persistence.view_event_repository import ViewEventRepository
+from app.application.auth_use_cases import AuthUseCases
+from app.application.galaxy_use_cases import GalaxyUseCases
+from app.application.star_use_cases import StarUseCases
+from app.core.database import get_session as get_session
 from app.core.security import decode_token
 from app.models.user import User
 
@@ -33,5 +40,34 @@ async def get_current_user(
     return user
 
 
+def get_auth_use_cases(session: Annotated[AsyncSession, Depends(get_session)]) -> AuthUseCases:
+    """인증 유스케이스에 필요한 persistence adapter를 조립한다."""
+    return AuthUseCases(
+        session,
+        user_repo=UserRepository(session),
+        star_repo=StarRepository(session),
+    )
+
+
+def get_galaxy_use_cases(session: Annotated[AsyncSession, Depends(get_session)]) -> GalaxyUseCases:
+    """은하 유스케이스에 필요한 persistence adapter를 조립한다."""
+    return GalaxyUseCases(session, galaxy_repo=GalaxyRepository(session))
+
+
+def get_star_use_cases(session: Annotated[AsyncSession, Depends(get_session)]) -> StarUseCases:
+    """항성 유스케이스에 필요한 persistence/external adapter를 조립한다."""
+    return StarUseCases(
+        session,
+        star_repo=StarRepository(session),
+        galaxy_repo=GalaxyRepository(session),
+        user_repo=UserRepository(session),
+        view_event_repo=ViewEventRepository(session),
+        embedding_provider=OpenAIEmbeddingProvider(),
+    )
+
+
 CurrentUser = Annotated[User, Depends(get_current_user)]
 DbSession = Annotated[AsyncSession, Depends(get_session)]
+AuthUseCaseDep = Annotated[AuthUseCases, Depends(get_auth_use_cases)]
+GalaxyUseCaseDep = Annotated[GalaxyUseCases, Depends(get_galaxy_use_cases)]
+StarUseCaseDep = Annotated[StarUseCases, Depends(get_star_use_cases)]

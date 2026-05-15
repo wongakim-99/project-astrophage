@@ -1,4 +1,5 @@
 import random
+from collections.abc import Sequence
 from typing import Protocol
 
 import numpy as np
@@ -16,7 +17,7 @@ _JITTER_SCALE = 6.0
 
 
 def place_new_star(
-    existing_stars: list[PlacedStar],
+    existing_stars: Sequence[PlacedStar],
     new_embedding: list[float],
     k: int = 3,
 ) -> tuple[float, float]:

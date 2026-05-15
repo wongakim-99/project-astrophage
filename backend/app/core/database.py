@@ -2,6 +2,7 @@ import contextvars
 import re
 import time
 from collections.abc import AsyncGenerator
+from typing import Any
 
 from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -27,7 +28,7 @@ engine = create_async_engine(
 if settings.app_env == "development":
     @event.listens_for(engine.sync_engine, "before_cursor_execute")
     def _before_execute(
-        conn: object,
+        conn: Any,
         cursor: object,
         statement: str,
         parameters: object,
@@ -38,7 +39,7 @@ if settings.app_env == "development":
 
     @event.listens_for(engine.sync_engine, "after_cursor_execute")
     def _after_execute(
-        conn: object,
+        conn: Any,
         cursor: object,
         statement: str,
         parameters: object,

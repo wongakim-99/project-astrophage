@@ -1,17 +1,18 @@
 import asyncio
 from logging.config import fileConfig
 
-from alembic import context
 from sqlalchemy.ext.asyncio import create_async_engine
 
-from app.core.config import settings
-from app.models.base import Base
+from alembic import context
+from app.api.auth.infrastructure.user_model import User  # noqa: F401
+
 # Alembic autogenerate가 Base.metadata를 통해 모든 테이블을 볼 수 있도록 모델을 import한다.
-from app.models.galaxy import Galaxy  # noqa: F401
-from app.models.star import Star  # noqa: F401
-from app.models.user import User  # noqa: F401
-from app.models.view_event import ViewEvent  # noqa: F401
-from app.models.wormhole import Wormhole  # noqa: F401
+from app.api.galaxy.infrastructure.galaxy_model import Galaxy  # noqa: F401
+from app.api.star.infrastructure.star_model import Star  # noqa: F401
+from app.api.star.infrastructure.view_event_model import ViewEvent  # noqa: F401
+from app.api.star.infrastructure.wormhole_model import Wormhole  # noqa: F401
+from app.common.config import settings
+from app.common.infrastructure.persistence.base import Base
 
 config = context.config
 if config.config_file_name is not None:

@@ -36,6 +36,20 @@ fi
 
 ROOT="/Users/gimgawon/Desktop/github-repo/project-astrophage"
 
+# ── 정책 파일 차단 ────────────────────────────────────────
+if [[ "$FILE_PATH" == "$ROOT/backend/app/"*"__init__.py" ]]; then
+    echo "[lint-fix] BLOCKED: backend/app/**/__init__.py 생성 금지"
+    echo "Python 3.12 implicit namespace package를 사용합니다. __init__.py를 만들지 마세요."
+    exit 2
+fi
+
+if [[ "$FILE_PATH" == "$ROOT/backend/pyproject.toml" ]] \
+    && grep -q 'explicit_package_bases' "$FILE_PATH" 2>/dev/null; then
+    echo "[lint-fix] BLOCKED: explicit_package_bases 설정 금지"
+    echo "mypy duplicate module 문제는 quality-gate 필터로 처리합니다. __init__.py 유도 설정을 추가하지 마세요."
+    exit 2
+fi
+
 # ── Python 파일 ────────────────────────────────────────────
 if [[ "$FILE_PATH" == *.py ]]; then
     BACKEND="$ROOT/backend"
@@ -55,7 +69,7 @@ if [[ "$FILE_PATH" == *.py ]]; then
 
     # mypy — 해당 파일만 타입 검사
     if [[ -x "$VENV/mypy" ]]; then
-        MYPY_OUT=$("$VENV/mypy" "$FILE_PATH" --ignore-missing-imports 2>&1)
+        MYPY_OUT=$("$VENV/mypy" --explicit-package-bases "$FILE_PATH" --ignore-missing-imports 2>&1)
         if echo "$MYPY_OUT" | grep -q "error:"; then
             echo "[lint-fix] mypy 오류:"
             echo "$MYPY_OUT"

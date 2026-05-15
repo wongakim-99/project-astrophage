@@ -20,6 +20,18 @@ ALL_CHANGED="$CHANGED $CHANGED_STAGED"
 HAS_PYTHON=$(echo "$ALL_CHANGED" | grep -E '\.py$' || true)
 HAS_TS=$(echo "$ALL_CHANGED" | grep -E '\.(ts|tsx)$' || true)
 
+# ── 안전 정책 센서 ────────────────────────────────────────
+FORBIDDEN_INIT=$(find "$BACKEND/app" -path '*/__init__.py' -type f 2>/dev/null || true)
+if [[ -n "$FORBIDDEN_INIT" ]]; then
+    FAILED=1
+    REPORT="$REPORT\n[FAIL] forbidden __init__.py:\n$FORBIDDEN_INIT\nPython 3.12 implicit namespace package 정책: backend/app/**/__init__.py 생성 금지."
+fi
+
+if grep -q 'explicit_package_bases' "$BACKEND/pyproject.toml" 2>/dev/null; then
+    FAILED=1
+    REPORT="$REPORT\n[FAIL] forbidden mypy setting:\nbackend/pyproject.toml contains explicit_package_bases\n__init__.py 생성을 유도하는 mypy 설정을 금지합니다."
+fi
+
 # ── Python 센서 ────────────────────────────────────────────
 if [[ -n "$HAS_PYTHON" ]]; then
     echo "[quality-gate] Python 변경 감지 → 센서 실행"
@@ -33,9 +45,9 @@ if [[ -n "$HAS_PYTHON" ]]; then
         echo "[quality-gate] ✓ ruff"
     fi
 
-    # mypy — "Duplicate module" 은 __init__.py 미사용 프로젝트의 known issue라 제외
-    MYPY_OUT=$(cd "$BACKEND" && "$VENV/mypy" app/ 2>&1)
-    MYPY_REAL_ERRORS=$(echo "$MYPY_OUT" | grep "error:" | grep -v "Duplicate module" || true)
+    # mypy — __init__.py 없이 namespace package를 쓰므로 CLI 플래그로 package base 명시
+    MYPY_OUT=$(cd "$BACKEND" && "$VENV/mypy" --explicit-package-bases app/ 2>&1)
+    MYPY_REAL_ERRORS=$(echo "$MYPY_OUT" | grep "error:" || true)
     if [[ -n "$MYPY_REAL_ERRORS" ]]; then
         FAILED=1
         REPORT="$REPORT\n[FAIL] mypy:\n$(echo "$MYPY_REAL_ERRORS" | head -10)"
@@ -43,20 +55,20 @@ if [[ -n "$HAS_PYTHON" ]]; then
         echo "[quality-gate] ✓ mypy"
     fi
 
-    # pytest — TEST_DATABASE_URL 또는 로컬 DB가 응답할 때만 실행
+    # pytest — 명시적이고 안전한 로컬 TEST_DATABASE_URL에서만 실행
     TEST_DB_URL="${TEST_DATABASE_URL:-}"
     DB_REACHABLE=false
+    DB_SAFE=false
 
     if [[ -n "$TEST_DB_URL" ]]; then
-        # Supabase 등 외부 DB: URL에서 호스트/포트 추출 후 연결 확인
-        DB_HOST=$(echo "$TEST_DB_URL" | python3 -c "import sys,re; m=re.search(r'@([^:/]+):(\d+)', sys.stdin.read()); print(m.group(1) if m else '')" 2>/dev/null || echo "")
-        DB_PORT=$(echo "$TEST_DB_URL" | python3 -c "import sys,re; m=re.search(r'@([^:/]+):(\d+)', sys.stdin.read()); print(m.group(2) if m else '5432')" 2>/dev/null || echo "5432")
-        if [[ -n "$DB_HOST" ]] && nc -z -w3 "$DB_HOST" "$DB_PORT" 2>/dev/null; then
-            DB_REACHABLE=true
+        DB_HOST=$(echo "$TEST_DB_URL" | python3 -c "import sys, urllib.parse; p=urllib.parse.urlparse(sys.stdin.read().strip()); print(p.hostname or '')" 2>/dev/null || echo "")
+        DB_PORT=$(echo "$TEST_DB_URL" | python3 -c "import sys, urllib.parse; p=urllib.parse.urlparse(sys.stdin.read().strip()); print(p.port or 5432)" 2>/dev/null || echo "5432")
+        DB_NAME=$(echo "$TEST_DB_URL" | python3 -c "import sys, urllib.parse; p=urllib.parse.urlparse(sys.stdin.read().strip()); print((p.path.rsplit('/', 1)[-1]) if p.path else '')" 2>/dev/null || echo "")
+        if [[ "$DB_HOST" == "localhost" || "$DB_HOST" == "127.0.0.1" || "$DB_HOST" == "::1" ]] \
+            && echo "$DB_NAME" | grep -qi 'test'; then
+            DB_SAFE=true
         fi
-    else
-        # 로컬 기본 DB 확인
-        if nc -z -w2 localhost 5432 2>/dev/null; then
+        if [[ "$DB_SAFE" == "true" ]] && nc -z -w3 "$DB_HOST" "$DB_PORT" 2>/dev/null; then
             DB_REACHABLE=true
         fi
     fi
@@ -71,7 +83,8 @@ if [[ -n "$HAS_PYTHON" ]]; then
                 echo "[quality-gate] ✓ pytest"
             fi
         else
-            echo "[quality-gate] ⚠ pytest 건너뜀 — 테스트 DB 미연결 (TEST_DATABASE_URL 설정 필요)"
+            echo "[quality-gate] ⚠ pytest 건너뜀 — 안전한 로컬 TEST_DATABASE_URL 미설정"
+            echo "[quality-gate]   조건: host localhost/127.0.0.1/::1, database name contains 'test'"
         fi
     fi
 fi

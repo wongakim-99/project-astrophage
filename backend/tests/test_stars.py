@@ -1,19 +1,27 @@
 """CRUD, 공개 여부, 조회 에너지, 생애주기 규칙을 검증하는 항성 API 테스트."""
 
+from typing import Any, cast
+
 from httpx import AsyncClient
 
-from app.models.user import User
-from app.services.lifecycle import DAYS_DARK_MATTER_START, compute_lifecycle
+from app.api.auth.infrastructure.user_model import User
+from app.api.star.domain.lifecycle import DAYS_DARK_MATTER_START, compute_lifecycle
 
 # ── 헬퍼 ──────────────────────────────────────────────────────────────────────
 
 async def _make_galaxy(client: AsyncClient, slug: str = "algo") -> str:
     resp = await client.post("/galaxies", json={"name": "Test Galaxy", "slug": slug})
     assert resp.status_code == 201
-    return resp.json()["id"]
+    galaxy_id = resp.json()["id"]
+    assert isinstance(galaxy_id, str)
+    return galaxy_id
 
 
-async def _make_star(client: AsyncClient, galaxy_id: str, slug: str = "merge-sort") -> dict:  # type: ignore[type-arg]
+async def _make_star(
+    client: AsyncClient,
+    galaxy_id: str,
+    slug: str = "merge-sort",
+) -> dict[str, Any]:
     resp = await client.post("/stars", json={
         "title": "Merge Sort",
         "slug": slug,
@@ -21,7 +29,7 @@ async def _make_star(client: AsyncClient, galaxy_id: str, slug: str = "merge-sor
         "galaxy_id": galaxy_id,
     })
     assert resp.status_code == 201
-    return resp.json()
+    return cast(dict[str, Any], resp.json())
 
 
 # ── 항성 CRUD ─────────────────────────────────────────────────────────────────

@@ -103,6 +103,10 @@ Router (HTTP 진입점)
 | 금지 행동 | 이유 |
 |----------|------|
 | 테스트 중 OpenAI API 실제 호출 | 비용 발생. 반드시 mock 사용 |
+| `TEST_DATABASE_URL=$DATABASE_URL`로 테스트 실행 | 테스트 fixture가 연결 DB 스키마를 drop/create |
+| Supabase/원격 DB를 `TEST_DATABASE_URL`로 사용 | dev/prod 테이블 삭제 위험 |
+| `backend/app/**/__init__.py` 생성 | Python 3.12 implicit namespace package 사용 |
+| `explicit_package_bases`를 pyproject에 추가 | `__init__.py` 우회 설정 금지, CLI 플래그만 사용 |
 | 기존 항성의 `pos_x`, `pos_y` 덮어쓰기 | 탐색 경험 파괴 |
 | `is_public` + `is_universe_public` 둘 중 하나라도 미확인 | 비공개 데이터 노출 |
 | 기존 항성 좌표를 일괄로 다시 계산 (UMAP 등) | 사용자가 익힌 우주 지도 파괴 |
@@ -119,11 +123,11 @@ Router (HTTP 진입점)
 
 ### 백엔드
 ```bash
-# 타입 검사
-mypy app/
+# 타입 검사 (__init__.py 없이 namespace package 사용)
+mypy --explicit-package-bases app/
 
-# 테스트 (실제 DB, 실제 OpenAI API 호출 없이)
-pytest tests/ -v
+# 테스트 (명시적 로컬 test DB, 실제 OpenAI API 호출 없이)
+TEST_DATABASE_URL=postgresql+asyncpg://.../astrophage_test pytest tests/ -v
 
 # 린트
 ruff check app/
@@ -148,7 +152,7 @@ vite build
   with patch("app.services.embedding.embed_text", new=AsyncMock(return_value=[0.1] * 1536)):
       ...
   ```
-- DB 테스트는 테스트 전용 PostgreSQL (인메모리 SQLite 금지 — pgvector 미지원).
+- DB 테스트는 명시적 로컬 테스트 전용 PostgreSQL만 사용한다. Supabase/dev/prod DB 금지.
 - 각 테스트는 독립적 트랜잭션 롤백으로 격리.
 - 프론트엔드는 현재 단위 테스트 러너(Vitest 등)를 도입하지 않았다. 검증은 `tsc --noEmit` + `eslint` + `vite build` + 수동 브라우저 확인이다.
 

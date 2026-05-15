@@ -1,3 +1,5 @@
+import uuid
+
 from app.application.auth_dto import AccessToken, TokenPair, UserProfile
 from app.core.security import (
     create_access_token,
@@ -5,7 +7,6 @@ from app.core.security import (
     hash_password,
     verify_password,
 )
-from app.models.user import User
 from app.ports.star_repository import StarRepositoryPort
 from app.ports.unit_of_work import UnitOfWorkPort
 from app.ports.user_repository import UserRepositoryPort
@@ -89,23 +90,26 @@ class AuthUseCases:
         return AccessToken(access_token=create_access_token(str(user.id)))
 
     async def update_universe_visibility(
-        self, current_user: User, is_universe_public: bool
+        self, user_id: uuid.UUID, is_universe_public: bool
     ) -> UserProfile:
         """
         우주 탐색 노출 여부를 저장한다. 공개 전환 시 기존 항성을 모두 공개한다.
 
         Args:
-            current_user: 인증 의존성이 반환한 현재 사용자 ORM 인스턴스.
+            user_id: 공개 설정을 변경할 사용자 UUID.
             is_universe_public: 변경할 공개 우주 설정값.
         """
-        current_user.is_universe_public = is_universe_public
+        user = await self._user_repo.get_by_id(user_id)
+        if user is None:
+            raise AuthUseCaseError("User not found")
+
         if is_universe_public:
-            await self._star_repo.set_all_public_for_user(current_user.id, is_public=True)
+            await self._star_repo.set_all_public_for_user(user.id, is_public=True)
+        user = await self._user_repo.update_universe_visibility(user, is_universe_public)
         await self._uow.commit()
-        await self._uow.refresh(current_user)
         return UserProfile(
-            id=str(current_user.id),
-            username=current_user.username,
-            email=current_user.email,
-            is_universe_public=current_user.is_universe_public,
+            id=str(user.id),
+            username=user.username,
+            email=user.email,
+            is_universe_public=user.is_universe_public,
         )

@@ -10,12 +10,12 @@ from app.adapters.persistence.star_repository import StarRepository
 from app.adapters.persistence.unit_of_work import SqlAlchemyUnitOfWork
 from app.adapters.persistence.user_repository import UserRepository
 from app.adapters.persistence.view_event_repository import ViewEventRepository
+from app.application.auth_dto import AuthenticatedUser
 from app.application.auth_use_cases import AuthUseCases
 from app.application.galaxy_use_cases import GalaxyUseCases
 from app.application.star_use_cases import StarUseCases
 from app.core.database import get_session as get_session
 from app.core.security import decode_token
-from app.models.user import User
 
 bearer_scheme = HTTPBearer()
 
@@ -23,7 +23,7 @@ bearer_scheme = HTTPBearer()
 async def get_current_user(
     credentials: Annotated[HTTPAuthorizationCredentials, Depends(bearer_scheme)],
     session: Annotated[AsyncSession, Depends(get_session)],
-) -> User:
+) -> AuthenticatedUser:
     """Bearer access token을 인증된 사용자 행으로 해석한다."""
     token = credentials.credentials
     try:
@@ -38,7 +38,12 @@ async def get_current_user(
     user = await repo.get_by_id(user_id)
     if user is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
-    return user
+    return AuthenticatedUser(
+        id=user.id,
+        username=user.username,
+        email=user.email,
+        is_universe_public=user.is_universe_public,
+    )
 
 
 def get_auth_use_cases(session: Annotated[AsyncSession, Depends(get_session)]) -> AuthUseCases:
@@ -70,7 +75,7 @@ def get_star_use_cases(session: Annotated[AsyncSession, Depends(get_session)]) -
     )
 
 
-CurrentUser = Annotated[User, Depends(get_current_user)]
+CurrentUser = Annotated[AuthenticatedUser, Depends(get_current_user)]
 DbSession = Annotated[AsyncSession, Depends(get_session)]
 AuthUseCaseDep = Annotated[AuthUseCases, Depends(get_auth_use_cases)]
 GalaxyUseCaseDep = Annotated[GalaxyUseCases, Depends(get_galaxy_use_cases)]

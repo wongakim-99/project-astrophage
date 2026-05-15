@@ -52,3 +52,18 @@ class UserRepository:
         await self._session.flush()
         await self._session.refresh(user)
         return user
+
+    async def update_universe_visibility(
+        self,
+        user: User,
+        is_universe_public: bool,
+    ) -> User:
+        """
+        Args:
+            user: 공개 설정을 변경할 영속 상태의 User 모델 인스턴스.
+            is_universe_public: 사용자의 우주 공개 여부.
+        """
+        user.is_universe_public = is_universe_public
+        await self._session.flush()
+        await self._session.refresh(user)
+        return user

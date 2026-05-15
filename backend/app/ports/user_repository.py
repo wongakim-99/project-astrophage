@@ -14,3 +14,9 @@ class UserRepositoryPort(Protocol):
     async def get_by_username(self, username: str) -> User | None: ...
 
     async def create(self, username: str, email: str, password_hash: str) -> User: ...
+
+    async def update_universe_visibility(
+        self,
+        user: User,
+        is_universe_public: bool,
+    ) -> User: ...

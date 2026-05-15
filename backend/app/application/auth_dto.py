@@ -1,4 +1,13 @@
 from dataclasses import dataclass
+from uuid import UUID
+
+
+@dataclass(frozen=True)
+class AuthenticatedUser:
+    id: UUID
+    username: str
+    email: str
+    is_universe_public: bool
 
 
 @dataclass(frozen=True)

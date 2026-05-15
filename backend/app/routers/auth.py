@@ -124,7 +124,7 @@ async def update_me_settings(
 ) -> UserResponse:
     """우주 탐색 노출 여부를 사용자 단위로 저장한다. 공개로 전환 시 기존 항성 전부 공개."""
     return _user_response(await use_cases.update_universe_visibility(
-        current_user=current_user,
+        user_id=current_user.id,
         is_universe_public=body.is_universe_public,
     ))
 

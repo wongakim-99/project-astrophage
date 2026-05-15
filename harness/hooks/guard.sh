@@ -81,4 +81,37 @@ if echo "$COMMAND" | grep -qE 'alembic\s+downgrade'; then
     exit 2
 fi
 
+# 8. pytest에 앱 DB URL을 테스트 DB로 주입 — 테스트 fixture가 drop_all/create_all 실행
+if echo "$COMMAND" | grep -qE 'TEST_DATABASE_URL\s*=\s*\$DATABASE_URL|env\[[\"'\'']TEST_DATABASE_URL[\"'\'']\]\s*=\s*env\[[\"'\'']DATABASE_URL[\"'\'']\]|os\.environ\[[\"'\'']TEST_DATABASE_URL[\"'\'']\]\s*=\s*os\.environ\[[\"'\'']DATABASE_URL[\"'\'']\]'; then
+    echo "[guard] BLOCKED: TEST_DATABASE_URL reuses DATABASE_URL"
+    echo "테스트 fixture는 연결된 DB에서 drop_all/create_all을 실행합니다. 앱 DB를 테스트 DB로 재사용 금지."
+    exit 2
+fi
+
+# 9. 원격 테스트 DB로 pytest 실행 — Supabase/dev/prod 스키마 삭제 방지
+if echo "$COMMAND" | grep -qE 'pytest|python\s+-m\s+pytest'; then
+    TEST_DB_URL="${TEST_DATABASE_URL:-}"
+    if [[ -n "$TEST_DB_URL" ]]; then
+        TEST_DB_HOST=$(echo "$TEST_DB_URL" | python3 -c "import sys, urllib.parse; p=urllib.parse.urlparse(sys.stdin.read().strip()); print(p.hostname or '')" 2>/dev/null || echo "")
+        TEST_DB_NAME=$(echo "$TEST_DB_URL" | python3 -c "import sys, urllib.parse; p=urllib.parse.urlparse(sys.stdin.read().strip()); print((p.path.rsplit('/', 1)[-1]) if p.path else '')" 2>/dev/null || echo "")
+        if [[ "$TEST_DB_HOST" != "localhost" && "$TEST_DB_HOST" != "127.0.0.1" && "$TEST_DB_HOST" != "::1" ]]; then
+            echo "[guard] BLOCKED: pytest with remote TEST_DATABASE_URL"
+            echo "테스트 DB reset은 로컬 DB에서만 허용합니다. host=$TEST_DB_HOST"
+            exit 2
+        fi
+        if ! echo "$TEST_DB_NAME" | grep -qi 'test'; then
+            echo "[guard] BLOCKED: pytest with non-test database name"
+            echo "TEST_DATABASE_URL database name must contain 'test'. database=$TEST_DB_NAME"
+            exit 2
+        fi
+    fi
+fi
+
+# 10. Python implicit namespace package 정책 — backend/app/**/__init__.py 생성 금지
+if echo "$COMMAND" | grep -qE '(__init__\.py|explicit_package_bases)'; then
+    echo "[guard] BLOCKED: Python package marker/config change"
+    echo "CLAUDE.md 규칙: Python 3.12 implicit namespace package 사용. __init__.py 생성 및 explicit_package_bases 설정 금지."
+    exit 2
+fi
+
 exit 0

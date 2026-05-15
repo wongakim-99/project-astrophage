@@ -14,6 +14,10 @@ CLAUDE.md의 핵심 규칙 중 **에이전트가 자주 위반하는 항목**만
 | `pos_x`, `pos_y` UPDATE | 항성 좌표는 생성 시 1회 고정 |
 | `alembic downgrade` | 데이터 손실 위험 |
 | `rm -rf` | 파괴적 삭제 |
+| `TEST_DATABASE_URL=$DATABASE_URL pytest` | 테스트 fixture가 연결 DB 스키마를 drop/create |
+| 원격 `TEST_DATABASE_URL`로 pytest | Supabase/dev/prod DB 스키마 삭제 방지 |
+| `backend/app/**/__init__.py` 생성 | Python 3.12 implicit namespace package 정책 |
+| `explicit_package_bases` pyproject 설정 | `__init__.py` 생성을 유도하는 설정 금지 |
 
 ---
 
@@ -47,8 +51,8 @@ CLAUDE.md의 핵심 규칙 중 **에이전트가 자주 위반하는 항목**만
 
 ```
 백엔드:  FastAPI + SQLAlchemy 2.x async + PostgreSQL + pgvector
-테스트:  pytest-asyncio + httpx AsyncClient + 실제 PostgreSQL (SQLite 금지)
+테스트:  pytest-asyncio + httpx AsyncClient + 로컬 PostgreSQL test DB (SQLite 금지)
 린트:    ruff check app/
-타입:    mypy app/
-실행:    cd backend && .venv/bin/python -m pytest tests/ -v
+타입:    mypy --explicit-package-bases app/
+실행:    cd backend && TEST_DATABASE_URL=postgresql+asyncpg://.../astrophage_test .venv/bin/python -m pytest tests/ -v
 ```
